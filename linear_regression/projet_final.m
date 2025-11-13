@@ -1,5 +1,5 @@
 %% Chargement des données
-T = readtable('/home/pablo/Bureau/data_project_avalanche/data_combined.csv');
+T = readtable('/home/pablo/Bureau/CMT/data_project_avalanche/data_combined.csv');
 %summary(T)
 %head(T)
 
