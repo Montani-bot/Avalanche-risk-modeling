@@ -1,0 +1,331 @@
+clear; clc; close all;
+
+%% Ce modèle se base sur plusieurs set de données SLF publiques et disponibles sur le site envidat.ch 
+
+%% Upload des donnée météorologique sur la région souhaitée %%%AUTOMATISATION%%%
+% Les tableaux sont téléchargeables pour un grand nombre de stations au format csv depuis le site www.admin.ch 
+% quelque set avec lequels j'ai travaillé pour ce model 
+meteo_davos = '/home/pablo/Bureau/CMT/data_project_avalanche/Data_meteo_davos.csv';
+meteo_mottec = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_mottec_brut.csv';
+meteo_zermatt = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_zermatt.csv';
+meteo_evolene = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_evolene.csv';
+meteo_pilatus = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_pilatus.csv';
+meteo_Arosa = '/home/pablo/Bureau/CMT/data_project_avalanche/meteo_arosa_grison.csv';
+meteo_jungfrau_3571m = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_jungfrau.csv';
+meteo_santis = '/home/pablo/Bureau/CMT/data_project_avalanche/meteo_santis.csv';
+meteo_weisfluhjoch = '/home/pablo/Bureau/CMT/data_project_avalanche/meteo_weissfluhjoch.csv'; %davos
+
+%% ===selection du dataset meteo de la station d'intérêt=== %%
+filename = meteo_weisfluhjoch;
+data_meteo = readtable(filename);
+
+
+%% convertit la collone des date au format matlab et la renomme 
+data_meteo.date = datetime(data_meteo.reference_timestamp, 'InputFormat', 'dd.MM.yyyy HH:mm');
+
+%% cette section à pour but de selectionner et renommer les variables du tableau (les tableau de donnée meteoswiss suivent tous les memes abbréviation ce qui permet de généralier mon code pour toute les région de suisse)
+data_meteo = renamevars(data_meteo, {'fkl010d0','gre000d0','htoautd0','rka150d0' ,'sre000d0','tre005d0','tso020d0','ure200d0'}, {'wind_speed','radiation','snow_depth_6UTC','precipitation_daily_sum_0UTC','sunshine_duration','temperature_5cm','temperature_20cm_sol','humidity'});
+vars_to_keep = {'date','wind_speed','radiation','snow_depth_6UTC','precipitation_daily_sum_0UTC','sunshine_duration','temperature_5cm','temperature_20cm_sol','humidity'};
+data_meteo = data_meteo(:, vars_to_keep);
+
+%% upload d'un set de donnée SLF sur les risque d'avalanche en fonction du jour dans chaque regionsde suisse 2022-2024 (envidat.ch)
+%les risques d'avalanche sont ceux indiqués par SLF. Toutes les information necessaires sur le calcul du risque par SLF sont disponible ici: https://www.slf.ch/fileadmin/user_upload/SLF/Lawinenbulletin_Schneesituation/Wissen_zum_Lawinenbulletin/Interpretationshilfe/Interpretationshilfe_EN.pdf
+filename = '/home/pablo/Bureau/CMT/data_project_avalanche/Danger_level_decimal_notinorder.csv';
+data_risk_swiss = readtable(filename);
+
+%% Ne garde que les information sur la zone d'intérêt 
+%Les numéros de secteur permette de selectionner la zone de suisse pour laquelle on souhaite obtenir les prédiction de risque 
+%https://www.slf.ch/fr/bulletin-davalanches-et-situation-nivologique/en-savoir-plus-sur-le-bulletin-davalanches/termes-geographiques/
+%numéros de secteur de quelque station:
+davos = 5123; %0.3664 weissfluhjoch 0.5541
+annivier = 4124; %0.4219
+zermatt = 4222; % 0.4482
+val_herens = 4122; %evolene 0.4728
+Pilatus = 2111; %0.4974
+arosa = 5221; %0.3649
+jungfrau = 1234; %0.2999
+alpstein = 3222; %santis 0.4208
+
+%% ===choisis le secteur d'intérêt=== %%
+sector_of_interest = davos;
+data_station_risk = data_risk_swiss(data_risk_swiss.sector_id == sector_of_interest, :);
+
+
+
+%% Travail de selection sur le tableau contenant les prédictions de risque SLF 
+%Trie le tableau par date 
+sorted_data_risk = sortrows(data_station_risk, 'date');
+
+%convertit les dates en format de date matlab 
+sorted_data_risk.date = datetime(sorted_data_risk.date, 'InputFormat', 'dd.MM.yyyy HH:mm');
+
+%renomme la variable du risque: 
+sorted_data_risk = renamevars(sorted_data_risk, 'level_detail_numeric', 'risk_index');
+
+%enlève les collone superflue (ne garde que la collone des dates et celle des indexes de risque
+vars_to_keep2 = {'date', 'risk_index'};
+sorted_data_risk = sorted_data_risk(:,vars_to_keep2);
+
+%% Combine les Tableaux data_mottec_meteo et sorted_data_annivier pour obtenir un tableau avec les variables d'interêt et un vecteur risque 
+Data_danger_meteo = innerjoin(data_meteo,sorted_data_risk, 'Keys', 'date');
+
+%% Enregistre sur le bureau
+%writetable(Data_danger_meteo, '/home/pablo/Bureau/data_combined.csv');
+
+%% pour simplifier les notations le tableau combiné des risques SLF et des donnée meteo pour la station d'intérêt s'appellera T pour le reste du code
+T = Data_danger_meteo;
+summary(T)
+%head(T)
+
+%% Utilisation du language c pour ajout de variables qui somment plusieurs jours et rendent le modèle plus pertinent et précis
+%% sommes
+precip_35j_sum = movsum_c(T.precipitation_daily_sum_0UTC, 35);
+precip_20j_sum = movsum_c(T.precipitation_daily_sum_0UTC, 20);
+precip_5j_sum = movsum_c(T.precipitation_daily_sum_0UTC, 5);
+precip_2j_sum = movsum_c(T.precipitation_daily_sum_0UTC, 2);
+
+sunshine_10j_sum = movsum_c(T.sunshine_duration, 10);
+sunshine_2j_sum = movsum_c(T.sunshine_duration, 2);
+
+humidity_40j_sum = movsum(T.humidity, 40);
+humidity_15j_sum = movsum_c(T.humidity, 15);
+
+%% en cours de test (n'améliore pas forcément la précision ) 
+%T.temp_A5_5j_sum = movsum_c(T.temp_A5, 5);
+%T.vit_vent_5j_sum = movsum_c(T.vit_vent, 5)
+
+%% Utilisation du language c pour calculer la variations / dérivées de la température (parametre important dans la mesure du risque d'avalanche)
+temp_delta_1j = diff_c(T.temperature_5cm, 1);
+
+%% somme les variable similaire pour ne pas qu'elles se marche dessus 
+precip_sum_sum = precip_2j_sum + precip_20j_sum;
+
+
+%% relations non linéaires 
+precip_product = precip_2j_sum.*precip_35j_sum; % 0.0002
+precip_2j_square = precip_2j_sum .^ 2; %negatif 
+temperature_square = T.temperature_5cm.^ 2; % la température 0 degré est une température critique qui est liée à beaucoup de changement de structure dans la neige. On essaye ici de capturer l'effet de la température autour de ce point  0.003
+temperature_radiation_product = T.temperature_5cm .* T.radiation; %negatif
+sunshine_duration_square = sunshine_2j_sum .^2; % 0.003 %explique pourquoi !!!
+sunshine_humidity_product = sunshine_10j_sum .* humidity_40j_sum; %negatif 
+windspeed_square = T.wind_speed .^2; % negatif
+
+%% en cours de test (n'ameliore pas forcément la precision)
+%T.Humid2j_delta_1j = diff_c(T.Humid2j 1);
+%T.temp_delta_3j = diff_c(T.temp_A5, 3);
+
+
+%% Préparation des variables (selection des variables d'intérêt et creation d'une matrice des variables X et d'un vecteur résultat y 
+X = [T.temperature_5cm, T.radiation, T.humidity, T.wind_speed, T.precipitation_daily_sum_0UTC, ...
+    T.sunshine_duration, precip_35j_sum, precip_20j_sum, precip_2j_sum, sunshine_10j_sum,...
+    sunshine_2j_sum, humidity_40j_sum, temp_delta_1j, temperature_square, sunshine_duration_square...
+    windspeed_square]; %precip_product]; gagne 0,0002
+
+
+%% Nettoyage des colonnes non exploitables
+cols_nan = all(isnan(X),1);  % colonnes entièrement NaN
+if any(cols_nan)
+    fprintf("⚠️ Suppression de %d variable(s) météo absente(s) pour cette station.\n", sum(cols_nan));
+    X(:, cols_nan) = [];   % enlève ces variables
+end
+
+%% vecteur des risques mesurés par SLF 
+y = T.risk_index;
+
+%% Supprimer les lignes contenant des NaN
+valid_idx = all(~isnan(X),2) & ~isnan(y);
+X = X(valid_idx, :);
+y = y(valid_idx);
+
+%% Noms des variables (dans l'ordre où X est construit)
+var_names = {'temperature_5cm','radiation','humidity','wind_speed', ...
+             'precipitation_daily_sum_0UTC','sunshine_duration', ...
+             'precip_35j_sum','precip_20j_sum','precip_2j_sum', ...
+             'sunshine_10j_sum','sunshine_2j_sum','humidity_40j_sum', ...
+             'temp_delta_1j'};
+%ajout des variables que tu veux tester en plus de celle de base 
+var_names = [var_names, 'temperature_square', 'sunshine_duration_square', 'windspeed_square'];
+var_names(cols_nan) = [];
+
+%% Séparation du set de donnée en une partie entrainement (80%) et une partie test (20%) de 20 manière différente (20split) et test des 20 modèle de regression issus des split 
+
+n = size(X,1);
+train_ratio = 0.8;
+
+num_tests = 20;
+R2_train_list = zeros(num_tests,1);
+R2_test_list  = zeros(num_tests,1);
+MSE_train_list = zeros(num_tests,1);
+MSE_test_list  = zeros(num_tests,1);
+
+%Vecteur pour stocker les coefficients (intercept + variables)
+coeffs_all = zeros(length(var_names)+1, num_tests);  %% NEW
+
+for k = 1:num_tests
+
+    rng(k);
+    idx = randperm(n);
+    train_idx = idx(1:round(train_ratio*n));
+    test_idx  = idx(round(train_ratio*n)+1:end);
+
+    Xt = X(train_idx,:);   yt = y(train_idx);
+    Xv = X(test_idx,:);    yv = y(test_idx);
+
+    % Normalisation basée sur le train set
+    mu = mean(Xt);
+    sigma = std(Xt);
+
+    Xt = (Xt - mu) ./ sigma;
+    Xv = (Xv - mu) ./ sigma;
+
+    Xt_d = [ones(size(Xt,1),1) Xt];
+    Xv_d = [ones(size(Xv,1),1) Xv];
+
+    b = Xt_d \ yt;
+    coeffs_all(:,k) = b; 
+
+    y_pred_t = Xt_d * b;
+    y_pred_v = Xv_d * b;
+
+    R2_train_list(k) = 1 - sum((yt - y_pred_t).^2)/sum((yt - mean(yt)).^2);
+    R2_test_list(k)  = 1 - sum((yv - y_pred_v).^2)/sum((yv - mean(yv)).^2);
+
+    MSE_train_list(k) = mean((yt - y_pred_t).^2);
+    MSE_test_list(k)  = mean((yv - y_pred_v).^2);
+
+end
+
+%% retourne les moyennes des 20 différents écarts type et MSE obtenu avec regressions linéaires sur les 20 disposition différentes 
+fprintf("\n===== Résultats moyens sur 20 splits =====\n");
+fprintf("R² train : %.4f (± %.4f)\n", mean(R2_train_list), std(R2_train_list));
+fprintf("R² test  : %.4f (± %.4f)\n", mean(R2_test_list), std(R2_test_list));
+fprintf("MSE train : %.4f\n", mean(MSE_train_list));
+fprintf("MSE test  : %.4f\n\n", mean(MSE_test_list));
+
+
+%% === AFFICHAGE DES COEFFICIENTS MOYENS ===  
+mean_coeffs = mean(coeffs_all,2);
+
+fprintf("\n===== Coefficients moyens de la régression =====\n");
+fprintf("Intercept : %.4f\n", mean_coeffs(1));
+
+for i = 1:length(var_names)
+    fprintf("%s : %.4f\n", var_names{i}, mean_coeffs(i+1));
+end
+
+figure;
+plot(R2_train_list, '-o'); hold on;
+plot(R2_test_list, '-o');
+xlabel('Test #'); ylabel('R²');
+title('Variabilité du modèle sur 20 séparations');
+legend('Train','Test');
+grid on;
+
+%% === BARPLOT DES IMPORTANCES DES VARIABLES ===
+
+figure;
+bar(mean_coeffs(2:end));  % On exclut l'intercept
+set(gca, 'XTickLabel', var_names, 'XTickLabelRotation', 45);
+title('Importance des paramètres météo dans la prédiction du risque d''avalanche');
+ylabel('Coefficient moyen de la régression');
+xlabel('Variables météorologiques');
+grid on;
+
+% Met en avant les variables dominantes
+[~, idx_sorted] = sort(abs(mean_coeffs(2:end)), 'descend');
+figure;
+bar(abs(mean_coeffs(1+idx_sorted)));
+set(gca, 'XTickLabel', var_names(idx_sorted), 'XTickLabelRotation', 45);
+title('Importance absolue des paramètres (triée)');
+ylabel('|Coefficient| moyen');
+xlabel('Variables triées par importance');
+grid on;
+
+
+
+
+
+
+
+
+%% nouveau à tester RIDGE
+% %% Paramètre de régularisation Ridge
+% lambda = 5;  % Ajustable selon performance
+% 
+% %% Pré-allocation des coefficients pour Ridge
+% coeffs_all_ridge = zeros(length(var_names)+1, num_tests);
+% 
+% for k = 1:num_tests
+% 
+%     rng(k);
+%     idx = randperm(n);
+%     train_idx = idx(1:round(train_ratio*n));
+%     test_idx  = idx(round(train_ratio*n)+1:end);
+% 
+%     Xt = X(train_idx,:);   yt = y(train_idx);
+%     Xv = X(test_idx,:);    yv = y(test_idx);
+% 
+%     % Normalisation basée sur le train set
+%     mu = mean(Xt);
+%     sigma = std(Xt);
+% 
+%     Xt_n = (Xt - mu) ./ sigma;
+%     Xv_n = (Xv - mu) ./ sigma;
+% 
+%     % Ajout de la colonne d'intercept
+%     Xt_d = [ones(size(Xt_n,1),1) Xt_n];
+%     Xv_d = [ones(size(Xv_n,1),1) Xv_n];
+% 
+%     % Ridge regression
+%     I = eye(size(Xt_d,2));
+%     I(1,1) = 0; % ne pas régulariser l'intercept
+%     b_ridge = (Xt_d'*Xt_d + lambda*I) \ (Xt_d'*yt);
+% 
+%     coeffs_all_ridge(:,k) = b_ridge;
+% 
+%     % Prédictions
+%     y_pred_t = Xt_d * b_ridge;
+%     y_pred_v = Xv_d * b_ridge;
+% 
+%     % R² et MSE
+%     R2_train_list(k) = 1 - sum((yt - y_pred_t).^2)/sum((yt - mean(yt)).^2);
+%     R2_test_list(k)  = 1 - sum((yv - y_pred_v).^2)/sum((yv - mean(yv)).^2);
+%     MSE_train_list(k) = mean((yt - y_pred_t).^2);
+%     MSE_test_list(k)  = mean((yv - y_pred_v).^2);
+% end
+% 
+% %% Résultats moyens Ridge
+% mean_coeffs_ridge = mean(coeffs_all_ridge,2);
+% 
+% fprintf("\n===== Coefficients moyens Ridge =====\n");
+% fprintf("Intercept : %.4f\n", mean_coeffs_ridge(1));
+% for i = 1:length(var_names)
+%     fprintf("%s : %.4f\n", var_names{i}, mean_coeffs_ridge(i+1));
+% end
+% 
+% fprintf("\n===== R² et MSE moyens Ridge =====\n");
+% fprintf("R² train : %.4f (± %.4f)\n", mean(R2_train_list), std(R2_train_list));
+% fprintf("R² test  : %.4f (± %.4f)\n", mean(R2_test_list), std(R2_test_list));
+% fprintf("MSE train : %.4f\n", mean(MSE_train_list));
+% fprintf("MSE test  : %.4f\n\n", mean(MSE_test_list));
+% 
+% %% Barplot des coefficients Ridge
+% figure;
+% bar(mean_coeffs_ridge(2:end));
+% set(gca, 'XTickLabel', var_names, 'XTickLabelRotation', 45);
+% title('Importance des paramètres météo (Ridge regression)');
+% ylabel('Coefficient moyen de la régression');
+% xlabel('Variables météorologiques');
+% grid on;
+% 
+% % Tri par importance absolue
+% [~, idx_sorted] = sort(abs(mean_coeffs_ridge(2:end)), 'descend');
+% figure;
+% bar(abs(mean_coeffs_ridge(1+idx_sorted)));
+% set(gca, 'XTickLabel', var_names(idx_sorted), 'XTickLabelRotation', 45);
+% title('Importance absolue des paramètres (Ridge, triée)');
+% ylabel('|Coefficient| moyen');
+% xlabel('Variables triées par importance');
+% grid on;
+
+

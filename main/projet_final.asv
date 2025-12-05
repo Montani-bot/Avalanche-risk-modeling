@@ -1,0 +1,212 @@
+
+clear; clc; close all;
+%% Ce modèle se base sur plusieurs set de données SLF publiques et disponibles sur le site envidat.ch 
+
+% Upload des donnée météorologique sur la région de mottec
+% Les tableaux sont téléchargeables au format csv depuis le site envidat.ch et peuvent facilement être modifiés pour selectionner les variables d'interêt depuis un éditeur tel que libreofficewriter (linux) 
+filename = '/home/pablo/Bureau/CMT/data_project_avalanche/data_mottec.csv';
+data_mottec_meteo = readtable(filename);
+%disp(data_mottec)
+
+%convertit la collone des date au format matlab 
+data_mottec_meteo.date = datetime(data_mottec_meteo.reference_timestamp, 'InputFormat', 'dd.MM.yyyy HH:mm');
+%head(data_mottec)
+
+
+%% upload d'un set de donnée SLF sur les risque d'avalanche en fonction du jour dans chaque regionsde suisse 2022-2024 (envidat.ch)
+%https://envidat.ch/#/metadata/comparing-human-forecasts-with-model-predictions?tags=AVALANCHE&isAuthorSearch=false&search=Evaluating+the+predictive+performance+
+filename = '/home/pablo/Bureau/CMT/data_project_avalanche/Danger_level_decimal_notinorder.csv';
+data_risques_suisse = readtable(filename);
+%disp(data_risques_suisse)
+
+%Ne garde que les information sur la zone val d'annivier (secteur 4124)
+%le numéro de secteur de chaque région de suisse est disponible sur le site slf.ch
+data_Annivier_risques = data_risques_suisse(data_risques_suisse.sector_id == 4124, :);
+
+%Trie le tableau par date 
+sorted_data_annivier = sortrows(data_Annivier_risques, 'date');
+
+%convertit les dates en format de date matlab 
+sorted_data_annivier.date = datetime(sorted_data_annivier.date, 'InputFormat', 'dd.MM.yyyy HH:mm');
+%head(sorted_data_annivier)
+
+%% Combine les Tableaux data_mottec_meteo et sorted_data_annivier pour obtenir un tableau avec les variables d'interêt et un vecteur risque 
+Data_danger_meteo = innerjoin(data_mottec_meteo,sorted_data_annivier, 'Keys', 'date');
+
+%simplifie le tableau final (variable ininterressante dans notre contexte) 
+Data_danger_meteo(:, [11 12]) = [];
+head(Data_danger_meteo)
+
+%% Enregistre sur le bureau
+%writetable(Data_danger_meteo, '/home/pablo/Bureau/data_combined.csv');
+
+%% Ajout de variables (le tableau combiné des risques SLF et des donnée meteo pour mottec s'appellera T pour le reste du code)
+T = readtable('/home/pablo/Bureau/CMT/data_project_avalanche/data_combined.csv');
+%summary(T)
+%head(T)
+
+%% Utilisation du language c pour ajout de variables qui somment plusieurs jours et rendent le modèle plus pertinent et précis  plus pertinent et précis
+%% sommes
+%T.precip_35j_sum = movsum(T.precipi_j, [35 0], 'omitnan'); %Le chiffre 35 correspond empiriquement au model avec la meilleur precision sur mon dataset
+T.precip_35j_sum = movsum_c(T.precipi_j, 36);
+
+%T.precip_20j_sum = movsum(T.precipi_j, [20 0], 'omitnan');
+T.precip_20j_sum = movsum_c(T.precipi_j, 21);
+
+%T.precip_2j_sum = movsum(T.precipi_j, [2 0], 'omitnan');
+T.precip_2j_sum = movsum_c(T.precipi_j, 3);
+
+
+%T.soleil_10j_sum = movsum(T.ensol_dur, [9 0], 'omitnan');
+T.soleil_10j_sum = movsum_c(T.ensol_dur, 10);
+
+%T.soleil_2j_sum = movsum(T.ensol_dur,[1 0], 'omitnan');
+T.soleil_2j_sum = movsum_c(T.ensol_dur, 2);
+
+T.Humid2j_40j_sum = movsum(T.Humid2j, 40);
+
+%n'améliore pas la précision 
+%T.temp_A5_5j_sum = movsum_c(T.temp_A5, 5);
+%T.vit_vent_5j_sum = movsum_c(T.vit_vent, 5)
+
+%%  variations / dérivées
+%T.temp_delta_1j = [NaN; diff(T.temp_A5)];
+T.temp_delta_1j = diff_c(T.temp_A5, 1);
+
+%% ajout de relation non-linéaires
+T.precip_2j_carre = T.precip_2j_sum .^ 2;
+T.produit_precipitation = 
+
+%% n'ameliore pas la precision sur annivier 
+%T.Humid2j_delta_1j = diff_c(T.Humid2j 1);
+%T.temp_delta_3j = diff_c(T.temp_A5, 3);
+
+
+%% Préparation des variables (selection des variables d'intérêt dans le tableau et creation d'une matrice des variables X et d'un vecteur résultat y 
+X = [T.temp_A5, T.Humid2j, T.vit_vent, T.precipi_j, T.ensol_dur, T.altitude, ...
+    T.precip_35j_sum,T.precip_20j_sum,T.precip_2j_sum T.soleil_10j_sum,...
+    T.soleil_2j_sum, T.Humid2j_40j_sum, T.temp_delta_1j];
+%vecteur des risques mesurés par SLF 
+y = T.level_detail_numeric;
+
+%% Supprimer les lignes contenant des NaN
+valid_idx = all(~isnan(X),2) & ~isnan(y);
+X = X(valid_idx, :);
+y = y(valid_idx);
+
+%% Séparation du set de donnée en une partie entrainement (80%) et une partie test (20%)
+
+% Définir la proportion pour l'entraînement (80 %)
+train_ratio = 0.8;
+
+% Nombre total de lignes
+n = size(X,1);
+
+% Créer un index aléatoire
+rng(42); % Pour reproductibilité
+idx = randperm(n);
+
+% Indices pour le training set et le test set
+train_idx = idx(1:round(train_ratio*n));
+test_idx  = idx(round(train_ratio*n)+1:end);
+
+% Diviser X et y
+X_train = X(train_idx, :);
+y_train = y(train_idx);
+
+X_test  = X(test_idx, :);
+y_test  = y(test_idx);
+
+%% Normalisation basée sur le training set
+mu = mean(X_train);
+sigma = std(X_train);
+
+X_train_n = (X_train - mu) ./ sigma;
+X_test_n  = (X_test - mu) ./ sigma;
+%Training set et test set sont normalisés avec les mêmes mu et sigma pour
+%éviter la fuite de donnée 
+
+%% Ajout de la constante pour l'intercept et calcul des coefficients ai de la regression linéaire 
+X_design_train = [ones(size(X_train_n,1),1) X_train_n];
+
+% Calcul des coefficients
+b = X_design_train \ y_train;
+%disp(b)
+
+%% Prédiction sur le training set
+y_train_pred = X_design_train * b;
+
+% Évaluation sur le training set
+R2_train = 1 - sum((y_train - y_train_pred).^2) / sum((y_train - mean(y_train)).^2);
+MSE_train = mean((y_train - y_train_pred).^2);
+
+fprintf('Training set -> R² = %.4f, MSE = %.4f\n', R2_train, MSE_train);
+
+
+
+
+%% Essai de 20 split différents entre training set et test set pour s'assurer de la consistence des donnée et viser à une amelioration du modèle qui ne se base pas sur une unique separation 
+% Ajouter la constante pour l'intercept
+X_design_test = [ones(size(X_test_n,1),1) X_test_n];
+
+% Prédiction sur le test set
+y_test_pred = X_design_test * b;
+
+% Évaluation
+R2_test = 1 - sum((y_test - y_test_pred).^2) / sum((y_test - mean(y_test)).^2);
+MSE_test = mean((y_test - y_test_pred).^2);
+
+fprintf('Test set -> R² = %.4f, MSE = %.4f\n', R2_test, MSE_test);
+
+num_tests = 20;
+R2_train_list = zeros(num_tests,1);
+R2_test_list  = zeros(num_tests,1);
+MSE_train_list = zeros(num_tests,1);
+MSE_test_list  = zeros(num_tests,1);
+
+for k = 1:num_tests
+
+    rng(k);
+    idx = randperm(n);
+    train_idx = idx(1:round(train_ratio*n));
+    test_idx  = idx(round(train_ratio*n)+1:end);
+
+    Xt = X(train_idx,:);   yt = y(train_idx);
+    Xv = X(test_idx,:);    yv = y(test_idx);
+
+    % Normalisation basée sur le train set
+    mu = mean(Xt);
+    sigma = std(Xt);
+
+    Xt = (Xt - mu) ./ sigma;
+    Xv = (Xv - mu) ./ sigma;
+
+    Xt_d = [ones(size(Xt,1),1) Xt];
+    Xv_d = [ones(size(Xv,1),1) Xv];
+
+    b = Xt_d \ yt;
+
+    y_pred_t = Xt_d * b;
+    y_pred_v = Xv_d * b;
+
+    R2_train_list(k) = 1 - sum((yt - y_pred_t).^2)/sum((yt - mean(yt)).^2);
+    R2_test_list(k)  = 1 - sum((yv - y_pred_v).^2)/sum((yv - mean(yv)).^2);
+
+    MSE_train_list(k) = mean((yt - y_pred_t).^2);
+    MSE_test_list(k)  = mean((yv - y_pred_v).^2);
+end
+
+fprintf("\n===== Résultats moyens sur 20 splits =====\n");
+fprintf("R² train : %.4f (± %.4f)\n", mean(R2_train_list), std(R2_train_list));
+fprintf("R² test  : %.4f (± %.4f)\n", mean(R2_test_list), std(R2_test_list));
+fprintf("MSE train : %.4f\n", mean(MSE_train_list));
+fprintf("MSE test  : %.4f\n\n", mean(MSE_test_list));
+
+% figure;
+% plot(R2_train_list, '-o'); hold on;
+% plot(R2_test_list, '-o');
+% xlabel('Test #'); ylabel('R²');
+% title('Variabilité du modèle sur 20 séparations');
+% legend('Train','Test');
+% grid on;
+%%
