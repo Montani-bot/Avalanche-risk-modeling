@@ -17,7 +17,7 @@ meteo_santis = '/home/pablo/Bureau/CMT/data_project_avalanche/meteo_santis.csv';
 meteo_weisfluhjoch = '/home/pablo/Bureau/CMT/data_project_avalanche/meteo_weissfluhjoch.csv'; %davos
 
 %% ===selection du dataset meteo de la station d'intérêt=== %%
-station_of_interest = meteo_evolene;
+station_of_interest = meteo_e;
 data_meteo = readtable(station_of_interest);
 
 %% convertit la collone des date au format matlab
@@ -50,7 +50,7 @@ jungfrau = 1234; %0.2999
 alpstein = 3222; %santis 0.4208
 
 %% ===choisis le secteur d'intérêt=== (permet de ne garder que les information sur le risque d'avalanche d'un secteur en particulier) 
-sector_of_interest = val_herens;
+sector_of_interest = Pilatus;
 data_station_risk = data_risk_swiss(data_risk_swiss.sector_id == sector_of_interest, :);
 
 
@@ -80,28 +80,39 @@ summary(T)
 %J'ai choisis de sommer les précipitation, l'ensoleillement et l'humidité qui sont trois paramètres important dans le risque d'avalanche et dont l'effet sur les jours qui précèdent le jour cible est crucial 
 %pour effectuer cette succession de sommes j'ai eu recours au language c à travers la fonction movsum_c 
 %la fonction movsum_c retourne un nan si il n'existe pas suffisemment de jours précédents pour calculer la sommes demandée donc dans ce cas les 35 premiers jours du tableau seront supprimmé 
-precip_35j_sum = movsum_c(T.precipitation_daily_sum_0UTC, 35);
+precip_35j_sum = movsum_c(T.precipitation_daily_sum_0UTC, 35); 
 precip_20j_sum = movsum_c(T.precipitation_daily_sum_0UTC, 20);
 precip_5j_sum = movsum_c(T.precipitation_daily_sum_0UTC, 5);
 precip_2j_sum = movsum_c(T.precipitation_daily_sum_0UTC, 2);
 
+snowdepth_5j_sum = movsum_ignore_nan_c(T.snow_depth_6UTC, 5);
+
+
+%%%% version de movsum qui ignore les nan %% attention pas symetrique dans le code 
+temperature_5j_sum = movsum_ignore_nan_c(T.temperature_5cm, 5);
+summary(temperature_5j_sum) 
+%%%
+
+radiation_5j_sum = movsum_c(T.radiation, 5);
+
 sunshine_10j_sum = movsum_c(T.sunshine_duration, 10);
 sunshine_2j_sum = movsum_c(T.sunshine_duration, 2);
 
-humidity_40j_sum = movsum_c(T.humidity, 40);
+windspeed_10j_sum = movsum_c(T.wind_speed, 10);
+
+humidity_30j_sum = movsum_c(T.humidity, 30);
 humidity_15j_sum = movsum_c(T.humidity, 15);
 
 %% Variation (un des paramètre souvent cité dans le risque d'avalanche est la variation de température)
 % Utilisation du language c pour calculer la variations de température à travers la fonction diff_c
 temp_delta_1j = diff_c(T.temperature_5cm, 1);
+snowdepth_delta_2j = diff_c(T.snow_depth_6UTC, 2);
 
 %% dans le domaine du risque d'avalanche il est important de detecter les extremes en termes de parametre meteo 
 %la fonction movquantil prends en parametre une des variables d'intérêt, lenombre de jours précédents que l'on souhaite considérer et le quantil ciblé. Elle retourne la valeur du quantil en parametre ce qui permet de detecter les extrèmes 
 precip_extreme_5j = movquantil_c(T.precipitation_daily_sum_0UTC, 15, 0.90);
-
-
-%% liaison de variables similaires %%%%%%% Zone-à-expliquer %%%%%%%%%%
-precip_sum_sum = 10 .* precip_2j_sum + precip_20j_sum;
+temp_extrem = movquantil_c(T.temperature_5cm, 7, 0);
+windspeed_extrem = movquantil_c (T.wind_speed, 10, 0.95);
 
 
 %% relations non linéaires (introduction de relation non linéaire entre les variables pour tenter d'augmenter la précision du model)
@@ -109,27 +120,36 @@ precip_sum_sum = 10 .* precip_2j_sum + precip_20j_sum;
 precip_product = precip_2j_sum.*precip_35j_sum; % 0.0002
 precip_2j_square = precip_2j_sum .^ 2; %negatif 
 temperature_square = T.temperature_5cm.^ 2; % la température 0 degré est une température critique qui est liée à beaucoup de changement de structure dans la neige. On essaye ici de capturer l'effet de la température autour de ce point  0.003
-temperature_radiation_product = T.temperature_5cm .* T.radiation; %negatif
 sunshine_duration_square = sunshine_2j_sum .^2; % 0.003 %explique pourquoi !!!
-sunshine_humidity_product = sunshine_10j_sum .* humidity_40j_sum; %negatif 
+sunshine_humidity_product = sunshine_10j_sum .* humidity_30j_sum; %negatif 
 windspeed_square = T.wind_speed .^2; % negatif
 precip_recent_proportion = precip_5j_sum./precip_35j_sum; %negatif 
-
+precip_5j_square = precip_5j_sum .^2;
+windspeed__10j_sum_square = windspeed_10j_sum .^2; 
+sunshine_radiation_product = radiation_5j_sum .* sunshine_2j_sum; 
+temp_5j_sum_square = temperature_5j_sum .^2;
+temperature_radiation_product = temperature_5j_sum .* radiation_5j_sum;
+windspeed_recent_snowfall_product = windspeed_10j_sum .* precip_20j_sum;
+%attention ici il faudrait d'abord mettre au carré puis sommer 
+%exponentielle
 
 
 %% Matrice des paramètres 
-X = [T.temperature_5cm, T.snow_depth_6UTC, precip_35j_sum, precip_sum_sum, sunshine_10j_sum,...
-    humidity_40j_sum, temp_delta_1j, temperature_square, sunshine_duration_square,...
-    windspeed_square, precip_extreme_5j, precip_recent_proportion];
+X = [temperature_radiation_product, temp_delta_1j, temperature_square, ...
+    T.snow_depth_6UTC,...
+    precip_35j_sum, precip_recent_proportion,precip_extreme_5j ...
+    sunshine_radiation_product ...
+    humidity_30j_sum,T.humidity...
+    windspeed_recent_snowfall_product, windspeed_extrem];
 
 
 %% Noms des variables (dans l'ordre où X est construit)
-var_names = {'temperature_5cm', ...
+var_names = {'temperature_radiation_product','temp_delta_1j','temperature_square' ...
              'snow_depth_6UTC', ...
-             'precip_35j_sum','precip_sum_sum', ...
-             'sunshine_10j_sum','humidity_40j_sum', ...
-             'temp_delta_1j','temperature_square','sunshine_duration_square',...
-             'windspeed_square','precip_extreme_5j','precip_recent_proportion'};
+             'precip_35j_sum','precip_recent_proportion','precip_extreme_5j' ...
+             'sunshine_radiation_product', ...
+             'humidity_30j_sum','humidity'...
+             'windspeed_recent_snowfall_product', 'windspeed_extrem'};
 
 %% Identification des colonnes entièrement NaN
 cols_nan = all(isnan(X),1);
@@ -151,67 +171,103 @@ valid_idx = all(~isnan(X),2) & ~isnan(y);
 X = X(valid_idx, :);
 y = y(valid_idx);
 
-%% Séparation du set de donnée en une partie entrainement (80%) et une partie test (20%) de 20 manière différente (20split) et test des 20 modèle de regression issus des split 
+%% separation en un set train et un set test 
+% Taille totale du dataset
 n = size(X,1);
-train_ratio = 0.8;
-num_tests = 20;
-% lste pour stocker les R² et les MSE obtenu 
-R2_train_list = zeros(num_tests,1);
-R2_test_list  = zeros(num_tests,1);
-MSE_train_list = zeros(num_tests,1);
-MSE_test_list  = zeros(num_tests,1);
+train_ratio = 0.8; % 80% pour l'entraînement, 20% pour le test final
 
-%%Vecteur pour stocker les coefficients (intercept + variables) (il est
-%interessant d'avoir le detail des coefficient pour interpreter l'incidence de chaque variables sur le risque final 
-%coeffs_all = zeros(length(var_names)+1, num_tests);
-coeffs_all = zeros(size(X,2)+1, num_tests); % +1 pour l'intercept
+% Pour reproductibilité
+rng(1); 
+idx = randperm(n);
 
+% Indices pour train et test
+n_train = round(train_ratio * n);
+train_idx = idx(1:n_train);
+test_idx  = idx(n_train+1:end);
 
-for k = 1:num_tests
+% Création des matrices train et test
+X_train = X(train_idx,:);
+y_train = y(train_idx);
 
+X_test  = X(test_idx,:);
+y_test  = y(test_idx);
+
+%% === Validation interne : 20 splits sur le train set ===
+% ce passage est chelou psk tu sous-divide ton train en 20 split test-train et tu le test a chaque fois 
+num_splits = 20;
+R2_val_list = zeros(num_splits,1);
+coeffs_all = zeros(size(X_train,2)+1, num_splits); % +1 pour intercept
+
+for k = 1:num_splits
     rng(k);
-    idx = randperm(n);
-    train_idx = idx(1:round(train_ratio*n));
-    test_idx  = idx(round(train_ratio*n)+1:end);
-
-    Xt = X(train_idx,:);   yt = y(train_idx);
-    Xv = X(test_idx,:);    yv = y(test_idx);
-
-    % Normalisation basée sur le train set
+    idx_split = randperm(n_train);
+    
+    % Split train en sous-train et validation interne (80/20)
+    n_sub_train = round(0.8 * n_train);
+    sub_train_idx = idx_split(1:n_sub_train);
+    val_idx       = idx_split(n_sub_train+1:end);
+    
+    Xt = X_train(sub_train_idx,:);
+    yt = y_train(sub_train_idx);
+    Xv = X_train(val_idx,:);
+    yv = y_train(val_idx);
+    
+    % Normalisation basée sur le sous-train
     mu = mean(Xt);
     sigma = std(Xt);
-
     Xt = (Xt - mu) ./ sigma;
     Xv = (Xv - mu) ./ sigma;
-
+    
     Xt_d = [ones(size(Xt,1),1) Xt];
     Xv_d = [ones(size(Xv,1),1) Xv];
-
-    b = Xt_d \ yt;
-    coeffs_all(:,k) = b; %stock les coefficients relatifs au 20 différents split dans une matrice
-
-    y_pred_t = Xt_d * b;
+    
+    b = Xt_d \ yt; % régression linéaire
+    coeffs_all(:,k) = b;
+    
+    % Évaluation sur validation interne
     y_pred_v = Xv_d * b;
-
-    R2_train_list(k) = 1 - sum((yt - y_pred_t).^2)/sum((yt - mean(yt)).^2);
-    R2_test_list(k)  = 1 - sum((yv - y_pred_v).^2)/sum((yv - mean(yv)).^2);
-
-    MSE_train_list(k) = mean((yt - y_pred_t).^2);
-    MSE_test_list(k)  = mean((yv - y_pred_v).^2);
-
+    R2_val_list(k) = 1 - sum((yv - y_pred_v).^2)/sum((yv - mean(yv)).^2);
 end
 
-%% == affichage des résultats du model == %%
-%% retourne les moyennes des 20 différents écarts type et MSE obtenu avec regressions linéaires sur les 20 disposition différentes 
-fprintf("\n===== Model results over 20 splits =====\n");
-fprintf("R² train : %.4f (± %.4f)\n", mean(R2_train_list), std(R2_train_list));
-fprintf("R² test  : %.4f (± %.4f)\n", mean(R2_test_list), std(R2_test_list));
-fprintf("MSE train : %.4f\n", mean(MSE_train_list));
-fprintf("MSE test  : %.4f\n\n", mean(MSE_test_list));
 
+
+
+
+
+
+
+%% === Calcul des coefficients moyens et test final ===
+mean_coeffs = mean(coeffs_all,2);
+
+% Normalisation du test set avec les mu et sigma du train set complet pour éviter la fuite de data
+mu_train = mean(X_train);
+sigma_train = std(X_train);
+X_test_norm = (X_test - mu_train) ./ sigma_train;
+X_test_d = [ones(size(X_test_norm,1),1) X_test_norm];
+
+% Prédiction sur le test set fixe
+y_pred_test = X_test_d * mean_coeffs;
+
+R2_test_final = 1 - sum((y_test - y_pred_test).^2)/sum((y_test - mean(y_test)).^2);
+MSE_test_final = mean((y_test - y_pred_test).^2);
+
+fprintf("R² test final : %.4f\n", R2_test_final);
+fprintf("MSE test final : %.4f\n", MSE_test_final);
+
+
+%% fonction finale de calcul de risque pour un jour particulier calcrisk.c
+%variables simple d'entrée 
+
+% temperature_5cm = 10
+% temperature_yesterday = 20
+% snow_depth_6UTC = 
+% precip_35j_sum = 
+% precipitation_five_days 
+% sunshine_duration 
+% humidity_30j_sum = 
+% windspeed = 
 
 %% === AFFICHAGE DES COEFFICIENTS MOYENS ===  
-mean_coeffs = mean(coeffs_all,2);
 
 fprintf("\n===== Coefficients moyens de la régression =====\n");
 fprintf("Intercept : %.4f\n", mean_coeffs(1));
@@ -221,17 +277,6 @@ for i = 1:length(var_names)
     fprintf("%s : %.4f\n", var_names{i}, mean_coeffs(i+1));
 end
 
-
-
-%% figure pour illustrer la variabilité du modèle sur 20 séparations  
-figure;
-plot(R2_train_list, '-o'); hold on;
-plot(R2_test_list, '-o');
-xlabel('Split number #'); ylabel('R² (coefficient of determination)');
-title('Variability of the model over 20 splits');
-legend('Train','Test');
-grid on;
-
 %% === BARPLOT DES IMPORTANCES DES VARIABLES ===
 figure;
 bar(mean_coeffs(2:end));  % On exclut l'intercept
@@ -240,7 +285,7 @@ set(gca, 'XTickLabel', var_names, ...
     'XTickLabelRotation', 45, ...
     'FontSize', 14, ...
     'FontWeight', 'bold', ...
-    'TickLabelInterpreter', 'none');  % <--- LIGNE MAGIQUE
+    'TickLabelInterpreter', 'none');  
 
 title('Importance of weather parameters in avalanche risk prediction in a particular swiss region/ski resort', ...
     'FontSize', 18, 'FontWeight', 'bold', 'Interpreter', 'none');
@@ -258,10 +303,19 @@ set(gca, 'XTickLabel', var_names(idx_sorted), ...
     'XTickLabelRotation', 45, ...
     'FontSize', 14, ...
     'FontWeight', 'bold', ...
-    'TickLabelInterpreter', 'none');  % <--- ICI AUSSI
+    'TickLabelInterpreter', 'none');
 
 title('Absolute importance of parameters (sorted)', ...
     'FontSize', 18, 'FontWeight', 'bold', 'Interpreter', 'none');
 ylabel('|Coefficient| mean', 'FontSize', 16, 'Interpreter', 'none');
 xlabel('Variables sorted by importance', 'FontSize', 16, 'Interpreter', 'none');
-grid on; 
+grid on;  
+
+
+
+
+
+
+
+
+
