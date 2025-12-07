@@ -6,19 +6,29 @@ clear; clc; close all;
 % Les tableaux sont téléchargeables pour un grand nombre de stations au format csv depuis le site www.admin.ch 
 % quelque set avec lequels j'ai travaillé pour ce model 
 % (le modèle fonctionne avec n'importe quel set de data meteo tiré du site de meteo suisse)
-meteo_davos = '/home/pablo/Bureau/CMT/data_project_avalanche/Data_meteo_davos.csv';
-meteo_mottec = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_mottec_brut.csv';
-meteo_zermatt = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_zermatt.csv';
-meteo_evolene = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_evolene.csv';
-meteo_pilatus = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_pilatus.csv';
-meteo_Arosa = '/home/pablo/Bureau/CMT/data_project_avalanche/meteo_arosa_grison.csv';
-meteo_jungfrau_3571m = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_jungfrau.csv';
-meteo_santis = '/home/pablo/Bureau/CMT/data_project_avalanche/meteo_santis.csv';
-meteo_weisfluhjoch = '/home/pablo/Bureau/CMT/data_project_avalanche/meteo_weissfluhjoch.csv'; %davos
+
+script_dir = fileparts(mfilename('fullpath'));   % répertoire du script
+project_root = fullfile(script_dir, '..');       % si le script est dans main/
+
+meteo_weissfluhjoch = fullfile(project_root, 'data', 'meteo_weissfluhjoch.csv');
+meteo
+data_meteo = readtable(f);
+summary(data_meteo)
+
+ %%
+% meteo_davos = '/home/pablo/Bureau/CMT/data_project_avalanche/Data_meteo_davos.csv';
+% meteo_mottec = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_mottec_brut.csv';
+% meteo_zermatt = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_zermatt.csv';
+% meteo_evolene = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_evolene.csv';
+% meteo_pilatus = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_pilatus.csv';
+% meteo_Arosa = '/home/pablo/Bureau/CMT/data_project_avalanche/meteo_arosa_grison.csv';
+% meteo_jungfrau_3571m = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_jungfrau.csv';
+% meteo_santis = '/home/pablo/Bureau/CMT/data_project_avalanche/meteo_santis.csv';
+% meteo_weisfluhjoch = '/home/pablo/Bureau/CMT/data_project_avalanche/meteo_weissfluhjoch.csv'; %davos
 
 %% ===selection du dataset meteo de la station d'intérêt=== %%
-station_of_interest = meteo_e;
-data_meteo = readtable(station_of_interest);
+% station_of_interest = meteo_weisfluhjoch;
+% data_meteo = readtable(station_of_interest);
 
 %% convertit la collone des date au format matlab
 data_meteo.date = datetime(data_meteo.reference_timestamp, 'InputFormat', 'dd.MM.yyyy HH:mm');
@@ -50,7 +60,7 @@ jungfrau = 1234; %0.2999
 alpstein = 3222; %santis 0.4208
 
 %% ===choisis le secteur d'intérêt=== (permet de ne garder que les information sur le risque d'avalanche d'un secteur en particulier) 
-sector_of_interest = Pilatus;
+sector_of_interest = annivier;
 data_station_risk = data_risk_swiss(data_risk_swiss.sector_id == sector_of_interest, :);
 
 

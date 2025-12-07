@@ -7,15 +7,16 @@ clear; clc; close all;
 % quelque set avec lequels j'ai travaillé pour ce model 
 % (le modèle fonctionne avec n'importe quel set de data meteo tiré du site de meteo suisse)
 
-% Récupère automatiquement le chemin du projet
-projectRoot = fileparts(mfilename('fullpath'));
+script_dir = fileparts(mfilename('fullpath'));   % répertoire du script
+project_root = fullfile(script_dir, '..');       % si le script est dans main/
 
-% Chemin vers le fichier CSV dans ton repo git
-meteo_weisfluhjoch = fullfile(projectRoot, 'data', 'meteo_weissfluhjoch.csv');
+meteo_weissfluhjoch = fullfile(project_root, 'data', 'meteo_weissfluhjoch.csv');
+meteo_davos = fullfile(project_root, 'data', '');
 
-% Lecture
-T = readtable(meteo_weisfluhjoch);
-% 
+data_meteo = readtable(f);
+summary(data_meteo)
+
+ %%
 % meteo_davos = '/home/pablo/Bureau/CMT/data_project_avalanche/Data_meteo_davos.csv';
 % meteo_mottec = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_mottec_brut.csv';
 % meteo_zermatt = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_zermatt.csv';

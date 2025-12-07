@@ -4,8 +4,11 @@ clear; clc; close all;
 
 % Upload des donnée météorologique sur la région de mottec
 % Les tableaux sont téléchargeables au format csv depuis le site envidat.ch et peuvent facilement être modifiés pour selectionner les variables d'interêt depuis un éditeur tel que libreofficewriter (linux) 
-filename = '/home/pablo/Bureau/CMT/data_project_avalanche/data_mottec.csv';
-data_mottec_meteo = readtable(filename);
+% Construire le chemin du fichier data relatif au répertoire du script
+script_dir = fileparts(mfilename('fullpath'));
+project_root = fullfile(script_dir, '..');
+f = fullfile(project_root, 'data', 'data_mottec.csv');
+data_mottec_meteo = readtable(f);
 %disp(data_mottec)
 
 %convertit la collone des date au format matlab 
@@ -15,8 +18,8 @@ data_mottec_meteo.date = datetime(data_mottec_meteo.reference_timestamp, 'InputF
 
 %% upload d'un set de donnée SLF sur les risque d'avalanche en fonction du jour dans chaque regionsde suisse 2022-2024 (envidat.ch)
 %https://envidat.ch/#/metadata/comparing-human-forecasts-with-model-predictions?tags=AVALANCHE&isAuthorSearch=false&search=Evaluating+the+predictive+performance+
-filename = '/home/pablo/Bureau/CMT/data_project_avalanche/Danger_level_decimal_notinorder.csv';
-data_risques_suisse = readtable(filename);
+f = fullfile(project_root, 'data', 'Danger_level_decimal_notinorder.csv');
+data_risques_suisse = readtable(f);
 %disp(data_risques_suisse)
 
 %Ne garde que les information sur la zone val d'annivier (secteur 4124)
@@ -41,7 +44,7 @@ head(Data_danger_meteo)
 %writetable(Data_danger_meteo, '/home/pablo/Bureau/data_combined.csv');
 
 %% Ajout de variables (le tableau combiné des risques SLF et des donnée meteo pour mottec s'appellera T pour le reste du code)
-T = readtable('/home/pablo/Bureau/CMT/data_project_avalanche/data_combined.csv');
+T = readtable(fullfile(project_root, 'data', 'data_combined.csv'));
 %summary(T)
 %head(T)
 

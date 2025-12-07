@@ -6,8 +6,4 @@
 %mottec 
 %avantages: demande peu de donnée pas de connexion au serveur slf...
 
-clear; clc; close all;
-filename = '/home/pablo/Téléchargements/data_mottec.csv';
-data = readtable(filename);
-disp(data)
-
+clear; clc; close all
