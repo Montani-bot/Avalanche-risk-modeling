@@ -6,18 +6,28 @@ clear; clc; close all;
 % Les tableaux sont téléchargeables pour un grand nombre de stations au format csv depuis le site www.admin.ch 
 % quelque set avec lequels j'ai travaillé pour ce model 
 % (le modèle fonctionne avec n'importe quel set de data meteo tiré du site de meteo suisse)
-meteo_davos = '/home/pablo/Bureau/CMT/data_project_avalanche/Data_meteo_davos.csv';
-meteo_mottec = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_mottec_brut.csv';
-meteo_zermatt = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_zermatt.csv';
-meteo_evolene = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_evolene.csv';
-meteo_pilatus = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_pilatus.csv';
-meteo_Arosa = '/home/pablo/Bureau/CMT/data_project_avalanche/meteo_arosa_grison.csv';
-meteo_jungfrau_3571m = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_jungfrau.csv';
-meteo_santis = '/home/pablo/Bureau/CMT/data_project_avalanche/meteo_santis.csv';
-meteo_weisfluhjoch = '/home/pablo/Bureau/CMT/data_project_avalanche/meteo_weissfluhjoch.csv'; %davos
+
+% Récupère automatiquement le chemin du projet
+projectRoot = fileparts(mfilename('fullpath'));
+
+% Chemin vers le fichier CSV dans ton repo git
+meteo_weisfluhjoch = fullfile(projectRoot, 'data', 'meteo_weissfluhjoch.csv');
+
+% Lecture
+T = readtable(meteo_weisfluhjoch);
+% 
+% meteo_davos = '/home/pablo/Bureau/CMT/data_project_avalanche/Data_meteo_davos.csv';
+% meteo_mottec = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_mottec_brut.csv';
+% meteo_zermatt = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_zermatt.csv';
+% meteo_evolene = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_evolene.csv';
+% meteo_pilatus = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_pilatus.csv';
+% meteo_Arosa = '/home/pablo/Bureau/CMT/data_project_avalanche/meteo_arosa_grison.csv';
+% meteo_jungfrau_3571m = '/home/pablo/Bureau/CMT/data_project_avalanche/data_meteo_jungfrau.csv';
+% meteo_santis = '/home/pablo/Bureau/CMT/data_project_avalanche/meteo_santis.csv';
+% meteo_weisfluhjoch = '/home/pablo/Bureau/CMT/data_project_avalanche/meteo_weissfluhjoch.csv'; %davos
 
 %% ===selection du dataset meteo de la station d'intérêt=== %%
-station_of_interest = meteo_mottec;
+station_of_interest = meteo_weisfluhjoch;
 data_meteo = readtable(station_of_interest);
 
 %% convertit la collone des date au format matlab
