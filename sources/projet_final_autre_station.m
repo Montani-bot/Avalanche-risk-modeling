@@ -265,3 +265,190 @@ title('Absolute importance of parameters (sorted)', ...
 ylabel('|Coefficient| mean', 'FontSize', 16, 'Interpreter', 'none');
 xlabel('Variables sorted by importance', 'FontSize', 16, 'Interpreter', 'none');
 grid on; 
+%% fonction finale de calcul de risque pour un jour particulier calcrisk.c
+%variables simple d'entrée 
+
+% temperature_5cm = 10
+% temperature_yesterday = 20
+% snow_depth_6UTC = 
+% precip_35j_sum = 
+% precipitation_five_days 
+% sunshine_duration 
+% humidity_30j_sum = 
+% windspeed = 
+
+% %% === Validation interne : 20 splits sur le train set ===
+% % ce passage est chelou psk tu sous-divide ton train en 20 split test-train et tu le test a chaque fois 
+% num_splits = 20;
+% R2_train_list = zeros(num_splits,1);
+% coeffs_all = zeros(size(X_train,2)+1, num_splits); % +1 pour intercept
+
+
+
+
+
+
+
+
+
+
+%%
+% %% === Calibration de alpha pour la WLS avec nouveau critère ===
+% alphas = 0:2:20;  % valeurs de alpha à tester
+% num_alphas = length(alphas);
+% 
+% % Matrices pour stocker les performances
+% MSE_test_alpha = zeros(num_alphas,1);
+% R2_test_alpha = zeros(num_alphas,1);
+% R2_high_alpha = zeros(num_alphas,1);
+% MSE_high_alpha = zeros(num_alphas,1);
+% MAE_high_alpha = zeros(num_alphas,1);
+% recall_high_alpha = zeros(num_alphas,1);
+% 
+% % Seuil pour définir les hauts risques
+% high_risk_threshold = 2;
+% 
+% for i = 1:num_alphas
+%     alpha = alphas(i);
+% 
+%     % Définition des poids WLS
+%     weights_train = 1 + alpha * (y_train >= 3);
+% 
+%     % ---- Régression WLS sur train set complet ----
+%     mu = mean(X_train);
+%     sigma = std(X_train);
+%     X_train_norm = (X_train - mu) ./ sigma;
+%     X_train_d = [ones(size(X_train_norm,1),1) X_train_norm];
+% 
+%     W = diag(weights_train);
+%     b = (X_train_d' * W * X_train_d) \ (X_train_d' * W * y_train);
+% 
+%     % Normalisation test set
+%     X_test_norm = (X_test - mu) ./ sigma;
+%     X_test_d = [ones(size(X_test_norm,1),1) X_test_norm];
+% 
+%     % Prédiction
+%     y_pred_test = X_test_d * b;
+% 
+%     % ==== Performance globale ====
+%     R2_test_alpha(i) = 1 - sum((y_test - y_pred_test).^2) / sum((y_test - mean(y_test)).^2);
+%     MSE_test_alpha(i) = mean((y_test - y_pred_test).^2);
+% 
+%     % ==== Performance hauts risques ====
+%     high_idx = y_test > high_risk_threshold;
+%     y_test_high = y_test(high_idx);
+%     y_pred_high = y_pred_test(high_idx);
+% 
+%     R2_high_alpha(i) = 1 - sum((y_test_high - y_pred_high).^2) / sum((y_test_high - mean(y_test_high)).^2);
+%     MSE_high_alpha(i) = mean((y_test_high - y_pred_high).^2);
+%     MAE_high_alpha(i) = mean(abs(y_test_high - y_pred_high));
+% 
+%     TP = sum(y_pred_high >= high_risk_threshold);
+%     recall_high_alpha(i) = TP / length(y_test_high);
+% end
+
+% %% === Sélection du meilleur alpha selon critère combiné ===
+% candidates = find((recall_high_alpha >= 0.85) & (MSE_high_alpha < 0.2) & (R2_high_alpha > 0.25));
+% 
+% if isempty(candidates)
+%     warning('Aucun alpha ne satisfait les critères combinés. Choix par défaut alpha = 0.');
+%     best_alpha = 0;
+%     best_idx = 1;
+% else
+%     % Parmi les candidats, choisir celui avec R² global maximum
+%     [~, rel_idx] = max(R2_test_alpha(candidates));
+%     best_idx = candidates(rel_idx);
+%     best_alpha = alphas(best_idx);
+% end
+% 
+% fprintf('Meilleur alpha sélectionné : %.2f\n', best_alpha);
+% fprintf('R² global : %.3f, R² hauts risques : %.3f, Recall hauts risques : %.3f, MSE hauts risques : %.4f\n', ...
+%     R2_test_alpha(best_idx), R2_high_alpha(best_idx), recall_high_alpha(best_idx), MSE_high_alpha(best_idx));
+% 
+
+
+% %% version pondérée (meilleure pour capter les risques elevés) 
+% alpha = best_alpha;  % intensité de pondération
+% weights_train = 1 + alpha * (y_train >= 3);
+% 
+% for k = 1:num_splits
+%     rng(k);
+%     idx_split = randperm(n_train);
+% 
+%     n_sub_train = round(0.8 * n_train);
+%     sub_train_idx = idx_split(1:n_sub_train);
+%     val_idx       = idx_split(n_sub_train+1:end);
+% 
+%     Xt = X_train(sub_train_idx,:);
+%     yt = y_train(sub_train_idx);
+%     Xv = X_train(val_idx,:);
+%     yv = y_train(val_idx);
+% 
+%     % -- Normalisation --
+%     mu = mean(Xt);
+%     sigma = std(Xt);
+%     Xt = (Xt - mu) ./ sigma;
+%     Xv = (Xv - mu) ./ sigma;
+% 
+%     Xt_d = [ones(size(Xt,1),1) Xt];
+%     Xv_d = [ones(size(Xv,1),1) Xv];
+% 
+%     % ---- WLS ----
+%     w_sub = weights_train(sub_train_idx);
+%     W = diag(w_sub);
+% 
+%     b = (Xt_d' * W * Xt_d) \ (Xt_d' * W * yt);
+% 
+%     coeffs_all(:,k) = b;
+% 
+%     % Validation interne
+%     y_pred_v = Xv_d * b;
+%     R2_train_list(k) = 1 - sum((yv - y_pred_v).^2)/sum((yv - mean(yv)).^2);
+% end
+% 
+% 
+% %% === Calcul des coefficients moyens et test final ===
+% mean_coeffs = mean(coeffs_all,2);
+% 
+% % Normalisation du test set avec les mu et sigma du train set complet pour éviter la fuite de data
+% mu_train = mean(X_train);
+% sigma_train = std(X_train);
+% X_test_norm = (X_test - mu_train) ./ sigma_train;
+% X_test_d = [ones(size(X_test_norm,1),1) X_test_norm];
+% 
+% % Prédiction sur le test set fixe
+% y_pred_test = X_test_d * mean_coeffs;
+% 
+% R2_test = 1 - sum((y_test - y_pred_test).^2)/sum((y_test - mean(y_test)).^2);
+% MSE_test = mean((y_test - y_pred_test).^2);
+% 
+% %% performances pour les risques élevés 
+% high_risk_idx = y_test > 2;
+% y_test_high = y_test(high_risk_idx);
+% y_pred_high = y_pred_test(high_risk_idx);
+% 
+% 
+% R2_high = 1 - sum((y_test_high - y_pred_high).^2) / sum((y_test_high - mean(y_test_high)).^2);
+% MSE_high = mean((y_test_high - y_pred_high).^2);
+% MAE_high = mean(abs(y_test_high - y_pred_high));
+% 
+% %% pourcentage de journée ou le risque était supérieur à 2.5 et mon model a dit que c'était le cas 
+% pred_high = y_pred_test >= 2.5;
+% real_high = y_test >= 2.5;
+% 
+% TP = sum(pred_high & real_high);
+% FN = sum(~pred_high & real_high);
+% 
+% recall_high = TP / (TP + FN);
+
+
+
+%% =========graphiques========== %%
+
+% %% Variabilité du model sur 20 splits graph 
+% figure; hold on;
+% plot(R2_train_list, '-o');
+% yline(mean(R2_train_list), '--r', 'Mean');
+% xlabel('Split #'); ylabel('R²');
+% title('Variability of train R² across 20 random splits');
+% grid on;
