@@ -208,36 +208,6 @@ fprintf("-------------------------------------------------------------\n\n");
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- 
-
 %% ===================== SPLIT TRAIN / TEST ==========================
 n = size(X,1);
 train_ratio = 0.8;
@@ -389,7 +359,7 @@ fprintf("🔹 Global Performance\n");
 fprintf("   • R² global        : %8.4f\n", R2_test);
 fprintf("   • MSE global       : %8.4f\n", MSE_test);
 
-fprintf("\n🔸 High-Risk Performance (y ≥ %.1f)\n", high_risk_threshold);
+fprintf("\n🔸 High-Risk Performance (Risk index ≥ %.1f)\n", high_risk_threshold);
 fprintf("   • R² high-risk     : %8.4f\n", R2_high_final);
 fprintf("   • MSE high-risk    : %8.4f\n", MSE_high_final);
 fprintf("   • MAE high-risk    : %8.4f\n", MAE_high_final);
@@ -444,7 +414,7 @@ set(gca, 'XTickLabel', var_names, ...
 
 title('Importance of weather parameters in avalanche risk prediction in a particular swiss region/ski resort', ...
     'FontSize', 18, 'FontWeight', 'bold', 'Interpreter', 'none');
-ylabel('Average linear regression coefficient', 'FontSize', 16, 'Interpreter', 'none');
+ylabel('Linear regression coefficient', 'FontSize', 16, 'Interpreter', 'none');
 xlabel('Meteorological Variables', 'FontSize', 16, 'Interpreter', 'none');
 grid on;  
 
@@ -458,218 +428,236 @@ ylabel('Predicted risk');
 title('Prediction vs Observation');
 grid on;
 
-%% === Graphique analyse des erreurs par niveau de risque ===
-%attention ton graphique divise en 5 catégories mais c'est faux 
-%ici on considère une erreurs lorsque l'écart est supérieur à 0.25 car les risques SLF sont donné par tranche de 0.5
-levels = 1:5;
-errors_per_level = zeros(5,1);
+%% === Graphique analyse des erreurs par niveau de risque (valeurs SLF réelles) ===
 
-for L = levels
-    idx = (y_test == L);
+% Liste réelle des niveaux de risque SLF possibles
+risk_levels = [1, 1.33, 1.67, 2, 2.33, 2.67, 3, 3.33, 3.67, 4, 4.33];
+
+% initialisation
+errors_per_level = zeros(length(risk_levels), 1);
+
+% Une erreur représente un écart supérieur à 0.25
+error_threshold = 0.25;
+
+for i = 1:length(risk_levels)
+    L = risk_levels(i);
+    
+    % indices correspondant à ce niveau réel de risque
+    idx = abs(y_test - L) < 1e-6;   % comparaison flottante sécurisée
     y_true_L = y_test(idx);
-    y_pred_L = y_pred_(idx);
+    y_pred_L = y_pred_final(idx);
 
-    % erreur si la prédiction est trop éloignée de la vérité
-    errors = abs(y_true_L - y_pred_L) > 0.25;
+    if isempty(y_true_L)
+        errors_per_level(i) = 0;
+        continue;
+    end
 
-    errors_per_level(L) = sum(errors);
+    % erreur si |y_true - y_pred| > 0.25
+    errors = abs(y_true_L - y_pred_L) > error_threshold;
+
+    errors_per_level(i) = sum(errors);
 end
 
+% === PLOT ===
 figure;
-bar(levels, errors_per_level);
-xlabel('Niveau de risque SLF');
+bar(risk_levels, errors_per_level);
+xlabel('Niveau de risque SLF (réel)');
 ylabel('Nombre d''erreurs');
-title('Erreurs de prédiction par niveau de risque');
+title('Erreurs de prédiction par niveau de risque SLF');
 grid on;
 
 
+%% --- Enregistrer toutes les figures ouvertes en PNG dans resultDir ---
+resultDir = '/home/pablo/avalanche_projet/Avalanche-risk-modeling/results';
+
+if ~isfolder(resultDir)
+    error('Dossier introuvable : %s', resultDir);
+end
+
+figs = findall(0, 'Type', 'figure'); % toutes les figures, visibles ou non
+if isempty(figs)
+    warning('Aucune figure ouverte à enregistrer.');
+else
+    timestamp = char(datetime('now','Format','yyyyMMdd_HHmmss'));
+    for k = 1:numel(figs)
+        fig = figs(k);
+
+        % Construire un nom de fichier lisible
+        if isprop(fig, 'Name') && ~isempty(fig.Name)
+            namePart = matlab.lang.makeValidName(strrep(fig.Name,' ','_'));
+        else
+            namePart = sprintf('fig%d', fig.Number);
+        end
+        pngName = fullfile(resultDir, sprintf('%s_%s.png', namePart, timestamp));
+
+        % Assurer que la figure est rendue pour l'export (utile si 'Visible' = 'off')
+        wasVisible = strcmp(get(fig,'Visible'),'on');
+        set(fig,'Visible','on');
+
+        % Exporter (exportgraphics si dispo, sinon print)
+        try
+            exportgraphics(fig, pngName, 'Resolution',300);
+        catch ME
+            % fallback si exportgraphics absent ou autre erreur
+            if contains(ME.message, 'Undefined function') || verLessThan('matlab','9.8')
+                print(fig, pngName, '-dpng', '-r300');
+            else
+                warning('Échec export pour %s : %s', pngName, ME.message);
+            end
+        end
+
+        % Rétablir visibilité initiale
+        if ~wasVisible
+            set(fig,'Visible','off');
+        end
+    end
+end
 
 
 
-%% fonction finale de calcul de risque pour un jour particulier calcrisk.c
-%variables simple d'entrée 
-
-% temperature_5cm = 10
-% temperature_yesterday = 20
-% snow_depth_6UTC = 
-% precip_35j_sum = 
-% precipitation_five_days 
-% sunshine_duration 
-% humidity_30j_sum = 
-% windspeed = 
-
-% %% === Validation interne : 20 splits sur le train set ===
-% % ce passage est chelou psk tu sous-divide ton train en 20 split test-train et tu le test a chaque fois 
-% num_splits = 20;
-% R2_train_list = zeros(num_splits,1);
-% coeffs_all = zeros(size(X_train,2)+1, num_splits); % +1 pour intercept
 
 
 
 
-
-
-
-
-
-
-%%
-% %% === Calibration de alpha pour la WLS avec nouveau critère ===
-% alphas = 0:2:20;  % valeurs de alpha à tester
-% num_alphas = length(alphas);
+% % build_and_test_calcrisk.m
+% % Génère/compile calcrisk et teste calcrisk_mex automatiquement.
+% % Adaptez project_root si nécessaire.
 % 
-% % Matrices pour stocker les performances
-% MSE_test_alpha = zeros(num_alphas,1);
-% R2_test_alpha = zeros(num_alphas,1);
-% R2_high_alpha = zeros(num_alphas,1);
-% MSE_high_alpha = zeros(num_alphas,1);
-% MAE_high_alpha = zeros(num_alphas,1);
-% recall_high_alpha = zeros(num_alphas,1);
+% %% Configuration
+% project_root = fileparts(mfilename('fullpath'));   % ou mettre le chemin manuellement
+% results_dir = fullfile(project_root,'..','results');
+% if ~isfolder(results_dir), mkdir(results_dir); end
 % 
-% % Seuil pour définir les hauts risques
-% high_risk_threshold = 2;
+% c_path = fullfile(results_dir,'calcrisk_c.c');
+% mex_wrapper_path = fullfile(results_dir,'calcrisk_mex.c');
 % 
-% for i = 1:num_alphas
-%     alpha = alphas(i);
-% 
-%     % Définition des poids WLS
-%     weights_train = 1 + alpha * (y_train >= 3);
-% 
-%     % ---- Régression WLS sur train set complet ----
-%     mu = mean(X_train);
-%     sigma = std(X_train);
-%     X_train_norm = (X_train - mu) ./ sigma;
-%     X_train_d = [ones(size(X_train_norm,1),1) X_train_norm];
-% 
-%     W = diag(weights_train);
-%     b = (X_train_d' * W * X_train_d) \ (X_train_d' * W * y_train);
-% 
-%     % Normalisation test set
-%     X_test_norm = (X_test - mu) ./ sigma;
-%     X_test_d = [ones(size(X_test_norm,1),1) X_test_norm];
-% 
-%     % Prédiction
-%     y_pred_test = X_test_d * b;
-% 
-%     % ==== Performance globale ====
-%     R2_test_alpha(i) = 1 - sum((y_test - y_pred_test).^2) / sum((y_test - mean(y_test)).^2);
-%     MSE_test_alpha(i) = mean((y_test - y_pred_test).^2);
-% 
-%     % ==== Performance hauts risques ====
-%     high_idx = y_test > high_risk_threshold;
-%     y_test_high = y_test(high_idx);
-%     y_pred_high = y_pred_test(high_idx);
-% 
-%     R2_high_alpha(i) = 1 - sum((y_test_high - y_pred_high).^2) / sum((y_test_high - mean(y_test_high)).^2);
-%     MSE_high_alpha(i) = mean((y_test_high - y_pred_high).^2);
-%     MAE_high_alpha(i) = mean(abs(y_test_high - y_pred_high));
-% 
-%     TP = sum(y_pred_high >= high_risk_threshold);
-%     recall_high_alpha(i) = TP / length(y_test_high);
+% %% 1) Vérifier variables requises
+% if ~exist('b_final','var') || ~exist('mu','var') || ~exist('sigma','var')
+%     error('Variables b_final, mu et sigma doivent exister dans le workspace avant d''exécuter ce script.');
 % end
-
-% %% === Sélection du meilleur alpha selon critère combiné ===
-% candidates = find((recall_high_alpha >= 0.85) & (MSE_high_alpha < 0.2) & (R2_high_alpha > 0.25));
+% b = b_final(:)'; mu = mu(:)'; sigma = sigma(:)';
+% nX = numel(mu);
+% if numel(b) ~= nX+1
+%     error('Taille de b_final incompatible : attendu %d (= nvars+1)', nX+1);
+% end
 % 
-% if isempty(candidates)
-%     warning('Aucun alpha ne satisfait les critères combinés. Choix par défaut alpha = 0.');
-%     best_alpha = 0;
-%     best_idx = 1;
+% %% 2) Générer calcrisk_c.c
+% fid = fopen(c_path,'w','n','UTF-8');
+% if fid==-1, error('Impossible d''ouvrir %s en écriture.', c_path); end
+% 
+% fprintf(fid, '/* Auto-generated calcrisk_c.c */\n#include <stddef.h>\n\n');
+% fprintf(fid, 'static const int N_FEATURES = %d;\n\n', nX);
+% 
+% fprintf(fid, 'static const double MU[%d] = {', nX);
+% fprintf(fid, '%g', mu(1)); for k=2:nX, fprintf(fid, ', %g', mu(k)); end
+% fprintf(fid, '};\n');
+% 
+% fprintf(fid, 'static const double SIGMA[%d] = {', nX);
+% fprintf(fid, '%g', sigma(1)); for k=2:nX, fprintf(fid, ', %g', sigma(k)); end
+% fprintf(fid, '};\n\n');
+% 
+% fprintf(fid, 'static const double B[%d] = {', nX+1);
+% fprintf(fid, '%g', b(1)); for k=2:(nX+1), fprintf(fid, ', %g', b(k)); end
+% fprintf(fid, '};\n\n');
+% 
+% fprintf(fid, 'double calcrisk_c(const double *x, int n)\n{\n');
+% fprintf(fid, '    if (x == NULL) return 0.0;\n');
+% fprintf(fid, '    if (n != N_FEATURES) return 0.0;\n');
+% fprintf(fid, '    double sum = B[0];\n');
+% fprintf(fid, '    for (int i = 0; i < N_FEATURES; ++i) {\n');
+% fprintf(fid, '        double xi = x[i];\n');
+% fprintf(fid, '        double s = SIGMA[i];\n');
+% fprintf(fid, '        double norm = (s == 0.0) ? (xi - MU[i]) : ((xi - MU[i]) / s);\n');
+% fprintf(fid, '        sum += B[i+1] * norm;\n');
+% fprintf(fid, '    }\n');
+% fprintf(fid, '    return sum;\n}\n');
+% 
+% fclose(fid);
+% fprintf('Wrote %s\n', c_path);
+% 
+% %% 3) Générer wrapper MEX (calcrisk_mex.c)
+% fid = fopen(mex_wrapper_path,'w','n','UTF-8');
+% if fid==-1, error('Impossible d''ouvrir %s en écriture.', mex_wrapper_path); end
+% 
+% fprintf(fid, '/* calcrisk_mex.c - simple MEX wrapper */\n');
+% fprintf(fid, '#include "mex.h"\n\n');
+% fprintf(fid, 'double calcrisk_c(const double *x, int n);\n\n');
+% fprintf(fid, 'void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])\n{\n');
+% fprintf(fid, '    if (nrhs != 1) mexErrMsgIdAndTxt("calcrisk_mex:arg","One input required.");\n');
+% fprintf(fid, '    if (!mxIsDouble(prhs[0]) || mxIsComplex(prhs[0])) mexErrMsgIdAndTxt("calcrisk_mex:arg","Input must be real double.");\n');
+% fprintf(fid, '    size_t n = mxGetNumberOfElements(prhs[0]);\n');
+% fprintf(fid, '    if ((int)n != %d) mexErrMsgIdAndTxt("calcrisk_mex:arg","Input length must be %d.");\n', nX, nX);
+% fprintf(fid, '    double *x = mxGetPr(prhs[0]);\n'); % mxGetPr for compatibility
+% fprintf(fid, '    double val = calcrisk_c(x, (int)n);\n');
+% fprintf(fid, '    plhs[0] = mxCreateDoubleScalar(val);\n');
+% fprintf(fid, '}\n');
+% 
+% fclose(fid);
+% fprintf('Wrote %s\n', mex_wrapper_path);
+% 
+% %% 4) Compiler le MEX dans results (se placer dans results_dir)
+% orig_dir = pwd;
+% try
+%     if ~isfile(c_path) || ~isfile(mex_wrapper_path)
+%         error('Fichiers sources inexistants avant compilation.');
+%     end
+% 
+%     cd(results_dir);
+% 
+%     % Optionnel : vérifiez compilateur configuré
+%     try
+%         mexext(); % si pas configuré, suggérer mex -setup
+%     catch
+%         warning('Vérifiez le compilateur: exécutez mex -setup si besoin.');
+%     end
+% 
+%     % Supprimer anciennes versions du MEX (prudence)
+%     old = dir(fullfile(results_dir, ['calcrisk_mex.' mexext()]));
+%     for k=1:numel(old), delete(fullfile(results_dir,old(k).name)); end
+% 
+%     fprintf('Compiling MEX in %s ...\n', results_dir);
+%     mex('-v', '-output', 'calcrisk_mex', 'calcrisk_c.c', 'calcrisk_mex.c');
+%     fprintf('Compilation terminée.\n');
+% catch ME
+%     cd(orig_dir);
+%     rethrow(ME);
+% end
+% cd(orig_dir);
+% 
+% %% 5) Test automatique (comparaison MEX vs MATLAB)
+% addpath(results_dir);    % s'assurer que MATLAB trouve le MEX
+% x = double(zeros(1,nX));
+% if exist('X_train_full','var') && size(X_train_full,2) == nX
+%     x = double(X_train_full(1,:));
 % else
-%     % Parmi les candidats, choisir celui avec R² global maximum
-%     [~, rel_idx] = max(R2_test_alpha(candidates));
-%     best_idx = candidates(rel_idx);
-%     best_alpha = alphas(best_idx);
+%     x = mu;
 % end
 % 
-% fprintf('Meilleur alpha sélectionné : %.2f\n', best_alpha);
-% fprintf('R² global : %.3f, R² hauts risques : %.3f, Recall hauts risques : %.3f, MSE hauts risques : %.4f\n', ...
-%     R2_test_alpha(best_idx), R2_high_alpha(best_idx), recall_high_alpha(best_idx), MSE_high_alpha(best_idx));
+% risk_ref = b_final(1) + sum( b_final(2:end) .* ((x - mu) ./ sigma) );
 % 
-
-
-% %% version pondérée (meilleure pour capter les risques elevés) 
-% alpha = best_alpha;  % intensité de pondération
-% weights_train = 1 + alpha * (y_train >= 3);
-% 
-% for k = 1:num_splits
-%     rng(k);
-%     idx_split = randperm(n_train);
-% 
-%     n_sub_train = round(0.8 * n_train);
-%     sub_train_idx = idx_split(1:n_sub_train);
-%     val_idx       = idx_split(n_sub_train+1:end);
-% 
-%     Xt = X_train(sub_train_idx,:);
-%     yt = y_train(sub_train_idx);
-%     Xv = X_train(val_idx,:);
-%     yv = y_train(val_idx);
-% 
-%     % -- Normalisation --
-%     mu = mean(Xt);
-%     sigma = std(Xt);
-%     Xt = (Xt - mu) ./ sigma;
-%     Xv = (Xv - mu) ./ sigma;
-% 
-%     Xt_d = [ones(size(Xt,1),1) Xt];
-%     Xv_d = [ones(size(Xv,1),1) Xv];
-% 
-%     % ---- WLS ----
-%     w_sub = weights_train(sub_train_idx);
-%     W = diag(w_sub);
-% 
-%     b = (Xt_d' * W * Xt_d) \ (Xt_d' * W * yt);
-% 
-%     coeffs_all(:,k) = b;
-% 
-%     % Validation interne
-%     y_pred_v = Xv_d * b;
-%     R2_train_list(k) = 1 - sum((yv - y_pred_v).^2)/sum((yv - mean(yv)).^2);
+% mex_exists = exist('calcrisk_mex','file') == 3;
+% if mex_exists
+%     try
+%         risk_mex = calcrisk_mex(x);
+%         fprintf('Risk MEX = %g, Risk ref = %g, diff = %g\n', risk_mex, risk_ref, risk_mex - risk_ref);
+%     catch ME
+%         warning('Appel calcrisk_mex a échoué : %s', ME.message);
+%         risk_mex = NaN;
+%     end
+% else
+%     warning('calcrisk_mex non trouvé après compilation.');
+%     risk_mex = NaN;
 % end
 % 
-% 
-% %% === Calcul des coefficients moyens et test final ===
-% mean_coeffs = mean(coeffs_all,2);
-% 
-% % Normalisation du test set avec les mu et sigma du train set complet pour éviter la fuite de data
-% mu_train = mean(X_train);
-% sigma_train = std(X_train);
-% X_test_norm = (X_test - mu_train) ./ sigma_train;
-% X_test_d = [ones(size(X_test_norm,1),1) X_test_norm];
-% 
-% % Prédiction sur le test set fixe
-% y_pred_test = X_test_d * mean_coeffs;
-% 
-% R2_test = 1 - sum((y_test - y_pred_test).^2)/sum((y_test - mean(y_test)).^2);
-% MSE_test = mean((y_test - y_pred_test).^2);
-% 
-% %% performances pour les risques élevés 
-% high_risk_idx = y_test > 2;
-% y_test_high = y_test(high_risk_idx);
-% y_pred_high = y_pred_test(high_risk_idx);
-% 
-% 
-% R2_high = 1 - sum((y_test_high - y_pred_high).^2) / sum((y_test_high - mean(y_test_high)).^2);
-% MSE_high = mean((y_test_high - y_pred_high).^2);
-% MAE_high = mean(abs(y_test_high - y_pred_high));
-% 
-% %% pourcentage de journée ou le risque était supérieur à 2.5 et mon model a dit que c'était le cas 
-% pred_high = y_pred_test >= 2.5;
-% real_high = y_test >= 2.5;
-% 
-% TP = sum(pred_high & real_high);
-% FN = sum(~pred_high & real_high);
-% 
-% recall_high = TP / (TP + FN);
+% %% 6) Rapport
+% if mex_exists && ~isnan(risk_mex)
+%     tol = 1e-9 + 1e-6*abs(risk_ref);
+%     if abs(risk_mex - risk_ref) <= tol
+%         fprintf('TEST OK : MEX concorde avec la référence MATLAB.\n');
+%     else
+%         fprintf('TEST FAIL : divergence MEX vs MATLAB (diff = %g).\n', risk_mex - risk_ref);
+%     end
+% else
+%     fprintf('Compilation/test incomplet.\n');
+% end
 
-
-
-%% =========graphiques========== %%
-
-% %% Variabilité du model sur 20 splits graph 
-% figure; hold on;
-% plot(R2_train_list, '-o');
-% yline(mean(R2_train_list), '--r', 'Mean');
-% xlabel('Split #'); ylabel('R²');
-% title('Variability of train R² across 20 random splits');
-% grid on;
