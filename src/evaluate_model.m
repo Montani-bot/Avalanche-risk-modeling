@@ -1,0 +1,32 @@
+function [y_pred, metrics] = evaluate_model(...
+    X_test, y_test, b_final, mu, sigma, high_risk_threshold)
+%% Évalue le modèle sur les données de test
+    
+    % Normalisation des données de test
+    X_test_n = (X_test - mu) ./ sigma;
+    X_test_d = [ones(size(X_test_n, 1), 1), X_test_n];
+    
+    % Prédiction
+    y_pred = X_test_d * b_final;
+    
+    % Calcul des métriques globales
+    metrics.R2_test = 1 - sum((y_test - y_pred).^2) / sum((y_test - mean(y_test)).^2);
+    metrics.MSE_test = mean((y_test - y_pred).^2);
+    
+    % Métriques high-risk
+    idx_high = (y_test > high_risk_threshold);
+    y_h = y_test(idx_high);
+    y_ph = y_pred(idx_high);
+    
+    if ~isempty(y_h)
+        metrics.R2_high_final = 1 - sum((y_h - y_ph).^2) / sum((y_h - mean(y_h)).^2);
+        metrics.MSE_high_final = mean((y_h - y_ph).^2);
+        metrics.MAE_high_final = mean(abs(y_h - y_ph));
+        metrics.recall_final = sum(y_ph > high_risk_threshold) / length(y_h);
+    else
+        metrics.R2_high_final = NaN;
+        metrics.MSE_high_final = NaN;
+        metrics.MAE_high_final = NaN;
+        metrics.recall_final = NaN;
+    end
+end

@@ -1,8 +1,9 @@
 clear; clc; close all;
 
-%% Ce modèle se base sur plusieurs set de données SLF publiques et disponibles sur le site envidat.ch 
+%% cette section de code utilise le compiler gcc pour compiler les fonction c utilisée dans le model 
+%compile_mex()
 
-%% Upload des donnée météorologique sur la région souhaitée
+%% Upload des donnée météorologique sur la région souhaitée depuis le folder Data
 % Les tableaux sont téléchargeables pour un grand nombre de stations au format csv depuis le site www.admin.ch 
 % quelque set avec lequels j'ai travaillé pour ce model 
 % (le modèle fonctionne avec n'importe quel set de data meteo tiré du site de meteo suisse)
@@ -67,7 +68,7 @@ fprintf("\n=============================================================\n");
 fprintf("        MODELE DE PREDICTION D'AVALANCHE PERSONNALISE\n");
 fprintf("=============================================================\n");
 fprintf("  ➤ Station météorologique : %s\n", station_filename);
-fprintf("  ➤ Région SLF utilisée    : %d\n", sector_of_interest);
+fprintf("  ➤ Région SLF correspondante    : %d\n", sector_of_interest);
 fprintf("=============================================================\n\n");
 
 
@@ -370,7 +371,7 @@ fprintf("=========================================================\n\n");
 
 
 %% ===================== GRAPHIQUE DU CALIBRAGE ========================
-figure;
+figure('Name','Weight calibration via alpha');
 subplot(3,1,1);
 plot(alphas, R2_global, '-o'); hold on;
 plot(best_alpha, R2_global(best_idx), 'ro', 'MarkerSize', 10, 'LineWidth', 2);
@@ -403,7 +404,7 @@ fprintf("=======================================================================
 
 
 %% === BARPLOT DES IMPORTANCES DES VARIABLES ===
-figure;
+figure('Name','Importance of variables');
 bar(b_final(2:end));  % On exclut l'intercept
 
 set(gca, 'XTickLabel', var_names, ...
@@ -419,7 +420,7 @@ xlabel('Meteorological Variables', 'FontSize', 16, 'Interpreter', 'none');
 grid on;  
 
 %% ========graphique Risque prédit vs risque SLF=========
-figure;
+figure('Name','Model predictions VS SLF risk');
 scatter(y_test, y_pred_final, 'filled');
 hold on;
 plot([0 5],[0 5],'r--','LineWidth',1.5);
@@ -459,7 +460,7 @@ for i = 1:length(risk_levels)
 end
 
 % === PLOT ===
-figure;
+figure('Name','errors number per risk level');
 bar(risk_levels, errors_per_level);
 xlabel('Niveau de risque SLF (réel)');
 ylabel('Nombre d''erreurs');
@@ -468,7 +469,7 @@ grid on;
 
 
 %% --- Enregistrer toutes les figures ouvertes en PNG dans resultDir ---
-resultDir = '/home/pablo/avalanche_projet/Avalanche-risk-modeling/results';
+resultDir = fullfile(project_root, 'results');
 
 if ~isfolder(resultDir)
     error('Dossier introuvable : %s', resultDir);
@@ -519,7 +520,9 @@ end
 
 
 
-% % build_and_test_calcrisk.m
+
+
+% %% build_and_test_calcrisk.m
 % % Génère/compile calcrisk et teste calcrisk_mex automatiquement.
 % % Adaptez project_root si nécessaire.
 % 
