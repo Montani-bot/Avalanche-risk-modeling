@@ -7,9 +7,12 @@ clear; clc; close all;
 script_dir = fileparts(mfilename('fullpath'));
 project_root = fullfile(script_dir, '..');
 
+%% compilation des fonction c utilisées dans le model avec GCC
+%compile_mex ()
+
 %% === Configuration des paramètres du modèle ===
-config.station_of_interest = fullfile(project_root, 'data', 'meteo_pilatus.csv');
-config.sector_of_interest = 2111; % Pilatus
+config.station_of_interest = fullfile(project_root, 'data', 'meteo_mottec.csv'); %% pour obtenir le model d'une autre station il suffit de mettre le csv correspondant 
+config.sector_of_interest = get_sector_id(config.station_of_interest);
 config.train_ratio = 0.8;
 config.val_ratio = 0.25;
 config.high_risk_threshold = 2.3;
@@ -62,3 +65,8 @@ export_figures(...
     config.resultDir);
 
 fprintf("\n✅ Pipeline terminé avec succès !\n");
+
+%% === Étape 7: Sauvegarde des coefficients du modèle ===
+fprintf("\n[ÉTAPE 7] Sauvegarde des coefficients du modèle...\n");
+coeff_saver(b_final, var_names, ...
+    config.station_of_interest, config.resultDir);

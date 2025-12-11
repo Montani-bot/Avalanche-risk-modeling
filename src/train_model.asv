@@ -51,10 +51,10 @@ function [best_alpha, b_final, performance] = train_model(...
         % pas seulement sur celles où y_val > threshold
         
         % Vraies étiquettes high-risk
-        true_high_mask = (y_val > high_risk_threshold);  % true si risque élevé
+        true_high_mask = (y_val >= high_risk_threshold);  % true si risque élevé
         
         % Prédictions high-risk
-        pred_high_mask = (y_pred_val > high_risk_threshold);  % true si prédit élevé
+        pred_high_mask = (y_pred_val >= high_risk_threshold);  % true si prédit élevé
         
         % Matrice de confusion
         TP = sum(pred_high_mask & true_high_mask);    % Vrai positif
