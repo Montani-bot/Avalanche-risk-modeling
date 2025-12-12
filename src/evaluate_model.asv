@@ -17,37 +17,22 @@ function [y_pred, metrics] = evaluate_model(...
     idx_high = (y_test > high_risk_threshold);
     y_h = y_test(idx_high);
     y_ph = y_pred(idx_high);
-
-    % Vraies étiquettes high-risk
-    true_high_mask = (y_test >= high_risk_threshold);
-    % Prédictions high-risk
-    pred_high_mask = (y_pred >= high_risk_threshold);
-    
-    % === Matrice de confusion ===
-    TP = sum(pred_high_mask & true_high_mask);       % vrai positif
-    FN = sum(~pred_high_mask & true_high_mask);      % faux négatif
-    FP = sum(pred_high_mask & ~true_high_mask);      % faux positif
+    TP = sum(pred_high_mask & true_high_mask);    % Vrai positif
+    FN = sum(~y_ph & y_h);   % Faux négatif
+    FP = sum(pred_high_mask & ~y_p);
     
     if ~isempty(y_h)
         metrics.R2_high_final = 1 - sum((y_h - y_ph).^2) / sum((y_h - mean(y_h)).^2);
         metrics.MSE_high_final = mean((y_h - y_ph).^2);
         metrics.MAE_high_final = mean(abs(y_h - y_ph));
+
+        metric.recall_high_final = TP / (TP + FN);
+        metric.precision_high = TP / (TP + FP);
+
     else
         metrics.R2_high_final = NaN;
         metrics.MSE_high_final = NaN;
         metrics.MAE_high_final = NaN;
-    end
-
-    % === Recall et Precision ===
-    if (TP + FN) > 0
-        metrics.recall_high_final = TP / (TP + FN);
-    else
-        metrics.recall_high_final = NaN;
-    end
-
-    if (TP + FP) > 0
-        metrics.precision_high_final = TP / (TP + FP);
-    else
-        metrics.precision_high_final = NaN;
+        metrics.recall_final = NaN;
     end
 end

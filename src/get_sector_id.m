@@ -18,8 +18,6 @@ function sector_id = get_sector_id(station_path)
             sector_id = 4122;  % Val d'Hérens
         case 'meteo_pilatus'
             sector_id = 2111;
-        case 'meteo_arosa'
-            sector_id = 5221;
         case 'meteo_jungfrau'
             sector_id = 1234;
         case 'meteo_santis'

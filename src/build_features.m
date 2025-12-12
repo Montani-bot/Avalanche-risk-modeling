@@ -1,6 +1,16 @@
 function [X, y, var_names] = build_features(T)
-%% Construit les features pour le modèle
+    % ========== AJOUT SIMPLE DU CHEMIN BIN ==========
+    % S'assurer que bin/ est dans le chemin MATLAB
+    script_dir = fileparts(mfilename('fullpath'));
+    project_root = fullfile(script_dir, '..');
+    bin_dir = fullfile(project_root, 'bin');
     
+    if ~contains(path, bin_dir)
+        addpath(bin_dir);
+        fprintf('✅ Dossier bin/ ajouté au chemin MATLAB\n');
+    end
+    
+    %% Construit les features pour le modèle
     % Variables de base
     wind_speed = T.wind_speed;
     radiation = T.radiation;
@@ -13,9 +23,6 @@ function [X, y, var_names] = build_features(T)
     % Ajout de la saison comme variable
     T.month = month(T.date);
     winter_days = ismember(T.month, [12, 1, 2, 3]);
-    spring_days = ismember(T.month, [4, 5]);
-
-% Analyser les performances par saison
     
     %% === Sommes mobiles ===
     precip_35j_sum = movsum_c(precipitation, 35);
@@ -23,7 +30,7 @@ function [X, y, var_names] = build_features(T)
     precip_5j_sum = movsum_c(precipitation, 5);
     precip_2j_sum = movsum_c(precipitation, 2);
     
-    snowdepth_5j_sum = movsum_ignore_nan_c(snow_depth, 5);
+    
     temperature_5j_sum = movsum_ignore_nan_c(temperature, 5);
     radiation_5j_sum = movsum_c(radiation, 5);
     

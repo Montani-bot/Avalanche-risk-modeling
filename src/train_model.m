@@ -14,6 +14,8 @@ function [best_alpha, b_final, performance] = train_model(...
     num_alphas = length(alphas);
     R2_global = zeros(num_alphas, 1);
     MSE_global = zeros(num_alphas, 1);
+    precision_high = zeros(num_alphas, 1);
+
 
     R2_high = zeros(num_alphas, 1);
     MSE_high = zeros(num_alphas, 1);
@@ -46,11 +48,9 @@ function [best_alpha, b_final, performance] = train_model(...
             MSE_high(i) = mean((y_h - y_ph).^2);
             MAE_high(i) = mean(abs(y_h - y_ph));
         end
-        % ==== CORRECTION DU CALCUL DU RECALL ====
-        % Le recall se calcule sur TOUTES les observations de validation,
-        % pas seulement sur celles où y_val > threshold
-        
-        % Vraies étiquettes high-risk
+      
+        % metric high risk 
+        % vrai high-risk
         true_high_mask = (y_val > high_risk_threshold);  % true si risque élevé
         
         % Prédictions high-risk
@@ -59,7 +59,8 @@ function [best_alpha, b_final, performance] = train_model(...
         % Matrice de confusion
         TP = sum(pred_high_mask & true_high_mask);    % Vrai positif
         FN = sum(~pred_high_mask & true_high_mask);   % Faux négatif
-        
+        FP = sum(pred_high_mask & ~true_high_mask);
+
         % Calcul du recall (sensibilité)
         if (TP + FN) > 0
             recall_high(i) = TP / (TP + FN);
@@ -67,10 +68,17 @@ function [best_alpha, b_final, performance] = train_model(...
             % Si aucun vrai high-risk dans y_val
             recall_high(i) = 0;
         end
+
+        % Precision
+        if (TP + FP) > 0
+            precision_high(i) = TP / (TP + FP);
+        else
+            precision_high(i) = 0;
+        end
     end
     
     %% === Sélection du meilleur alpha ===
-    valid_idx = find(recall_high >= 0.8 & MSE_high < 0.1 & R2_high > 0.25);
+    valid_idx = find(recall_high >= 0.8 & precision_high >= 0.30 & MSE_high < 0.15 & R2_high > 0.2);
     
     if isempty(valid_idx)
         warning("❌ Aucun alpha ne satisfait les contraintes sur VALIDATION. Sélection par meilleur R² global.");
@@ -83,11 +91,12 @@ function [best_alpha, b_final, performance] = train_model(...
     best_alpha = alphas(best_idx);
     
     %% === Affichage des résultats de calibration ===
-    fprintf("\n===== CALIBRATION DE ALPHA =====\n");
+    fprintf("\n===== CALIBRATION DE ALPHA RESULTAT DU TEST INTERNE =====\n");
     fprintf("Best alpha = %.2f\n", best_alpha);
     fprintf("R² global (val) = %.3f\n", R2_global(best_idx));
     fprintf("R² high-risk (val) = %.3f\n", R2_high(best_idx));
     fprintf("Recall high-risk (val) = %.3f\n", recall_high(best_idx));
+    fprintf("precision high-risk (val) = %.3f\n", precision_high(best_idx));
     fprintf("MSE high-risk (val) = %.3f\n", MSE_high(best_idx));
     
     %% === Entraînement final sur la partie du train n'ayant pas servit pour tester alpha (evite la fuite de donnée)=== 
@@ -101,6 +110,7 @@ function [best_alpha, b_final, performance] = train_model(...
     performance.alpha_results.R2_global = R2_global;
     performance.alpha_results.R2_high = R2_high;
     performance.alpha_results.recall_high = recall_high;
+    performance.alpha_results.precision_high = precision_high;
     performance.best_idx = best_idx;
     performance.best_alpha = best_alpha;
 end
