@@ -1,3 +1,4 @@
+%% cette fonction à pour but de determiner automatiquement le bon secteur SLF pour la station entrée en input
 function sector_id = get_sector_id(station_path)
 
     % Extraire le nom du fichier sans extension

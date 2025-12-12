@@ -1,5 +1,6 @@
 function [T] = load_and_prepare_data(station_path, sector_id)
 %% Charge et prépare les données météo et de risque
+% retourne un tableau T trié par date contenant plusieurs collones de variable et une collone de risque SLF
     
     % Déterminer le répertoire du projet
     script_dir = fileparts(mfilename('fullpath'));

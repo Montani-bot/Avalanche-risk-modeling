@@ -1,21 +1,20 @@
+%% cette fonction à pour but d'entrainer/calibrer le model personnalisé pour la station choisie en input 
 function [best_alpha, b_final, performance] = train_model(...
     X_train, X_val, y_train, y_val, ...
     mu, sigma, alphas, high_risk_threshold)
-%% Entraîne le modèle avec calibration de alpha
-    
     %% === Normalisation ===
-    X_train_n = (X_train - mu) ./ sigma;
-    X_val_n = (X_val - mu) ./ sigma;
+    X_train_n = (X_train - mu) ./ sigma; % mu et sigma proviennent du fichier split_data.m 
+    X_val_n = (X_val - mu) ./ sigma; 
     
     X_train_d = [ones(size(X_train_n, 1), 1), X_train_n];
     X_val_d = [ones(size(X_val_n, 1), 1), X_val_n];
     
     %% === Calibration de alpha ===
     num_alphas = length(alphas);
+    % metric choisies pour entrainer et calibrer le modèle
     R2_global = zeros(num_alphas, 1);
     MSE_global = zeros(num_alphas, 1);
     precision_high = zeros(num_alphas, 1);
-
 
     R2_high = zeros(num_alphas, 1);
     MSE_high = zeros(num_alphas, 1);
@@ -48,18 +47,19 @@ function [best_alpha, b_final, performance] = train_model(...
             MSE_high(i) = mean((y_h - y_ph).^2);
             MAE_high(i) = mean(abs(y_h - y_ph));
         end
-      
-        % metric high risk 
+
         % vrai high-risk
         true_high_mask = (y_val > high_risk_threshold);  % true si risque élevé
         
         % Prédictions high-risk
         pred_high_mask = (y_pred_val > high_risk_threshold);  % true si prédit élevé
         
-        % Matrice de confusion
+        % Matrice de confusion 
         TP = sum(pred_high_mask & true_high_mask);    % Vrai positif
         FN = sum(~pred_high_mask & true_high_mask);   % Faux négatif
-        FP = sum(pred_high_mask & ~true_high_mask);
+        FP = sum(pred_high_mask & ~true_high_mask);   % Faux positif
+        TN = sum(~pred_high_mask & ~true_high_mask)
+        confusion_matrix = [TP, FP, FN, TN];
 
         % Calcul du recall (sensibilité)
         if (TP + FN) > 0

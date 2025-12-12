@@ -1,5 +1,5 @@
 function display_final_performance(metrics, high_risk_threshold, b_final, var_names)
-%% Affiche les performances finales
+%% Affiche les performances finales du modèle ainsi que les coefficients dans le terminal 
     
     fprintf("\n   ===========================================================================\n");
     fprintf("                 🌟 PERFORMANCES FINALES DU MODEL SUR L'ECHANTILLON TEST 🌟\n");

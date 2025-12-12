@@ -1,3 +1,4 @@
+%% cette fonction permet de stocker les coefficients du model dans le folder Results
 function coeff_saver(b_final, var_names, station_path, resultDir)
 
     % Récupère le nom propre de la station (ex: meteo_pilatus)

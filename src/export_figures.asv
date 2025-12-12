@@ -72,10 +72,10 @@ function export_figures(y_test, y_pred_final, ...
     
     %% === Figure 4: Analyse des erreurs par niveau de risque ===
     % Barplot du nombre d'erreur significative par niveau de risque 
-    % Il a été considéré ici qu'une erreur significative est une prediction avec un écart au risque SLF supérieure à 0.15
+    % 
     risk_levels = [1, 1.33, 1.67, 2, 2.33, 2.67, 3, 3.33, 3.67, 4, 4.33];
     errors_per_level = zeros(length(risk_levels), 1);
-    error_threshold = 0.15;
+    error_threshold = 0.25;
     
     for i = 1:length(risk_levels)
         L = risk_levels(i);
@@ -102,9 +102,8 @@ function export_figures(y_test, y_pred_final, ...
     %close all;
 end
 
-%% cette fonction enregistre les plots au format PNG dans le folder Results 
 function save_figure(fig, name, resultDir, timestamp)
-% Sauvegarde une figure individuelle
+%% Sauvegarde une figure individuelle
     set(fig, 'Visible', 'on');
     pngName = fullfile(resultDir, sprintf('%s_%s.png', name, timestamp));
     
