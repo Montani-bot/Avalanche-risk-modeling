@@ -1,0 +1,18 @@
+=============================================
+   Avalanche Risk Model – Coefficients
+   Station: meteo_mottec
+=============================================
+
+Intercept:
+   b0 = 2.548478
+
+Feature Coefficients:
+   winter_days                0.070022
+   precip_35j_sum             0.071339
+   precip_recent_proportion   -0.039902
+   precip_extreme_5j          -0.016676
+   sunshine_radiation_product  0.049648
+   humidity_30j_sum           0.042352
+   humidity                   0.081054
+   windspeed_recent_snowfall_product  0.142287
+   windspeed_extrem           -0.025974

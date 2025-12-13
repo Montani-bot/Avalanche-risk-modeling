@@ -11,7 +11,7 @@ project_root = fullfile(script_dir, '..');
 compile_mex ()
 
 %% === Configuration des paramètres du modèle ===
-config.station_of_interest = fullfile(project_root, 'data', 'meteo_pilatus.csv'); %% pour obtenir le model d'une autre station il suffit de mettre le csv correspondant 
+config.station_of_interest = fullfile(project_root, 'data', 'meteo_mottec.csv'); %% pour obtenir le model d'une autre station il suffit de mettre le csv correspondant 
 config.sector_of_interest = get_sector_id(config.station_of_interest);
 config.train_ratio = 0.8;
 config.val_ratio = 0.25;
