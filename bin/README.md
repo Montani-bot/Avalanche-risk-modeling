@@ -1,1 +1,1 @@
-Le folder Bin contient les fichiers c compilés (executables)
+Le folder récupère les fichiers c compilés (executables)
