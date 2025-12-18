@@ -1,1 +1,0 @@
-Le folder récupère les fichiers c compilés (executables)

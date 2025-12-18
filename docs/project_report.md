@@ -1,17 +1,14 @@
 ---
-title: Avalanche Risk Prediction for Swiss Regions — Final Report
-author: Pablo Montani 
+Title: Avalanche Risk Prediction for Swiss Regions
+— Final Report author: Pablo Montani 
 geometry: margin = 2.5cm
 ---
-
-<!--
-  Final report template (approx. 5 pages). Fill sections below.
-  Save as: docs/report.md  (or convert to PDF with pandoc / LaTeX)
--->
 
 # Deviations from project proposal
 
 Brief summary of deviations from the original proposal:
+- I decided to design my model to give 1-5 risk prediction imitating the SLF risk mesurement system instead of 
+
 
 - Switched from a single monolithic MATLAB script to a modular pipeline (src/*.m) and small C/MEX helpers for heavy operations (movsum, product).
 - Replaced a pure OLS baseline with a Weighted Least Squares (WLS) calibration to prioritize correct detection of high-risk days.

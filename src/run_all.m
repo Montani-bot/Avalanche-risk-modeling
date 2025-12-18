@@ -8,15 +8,15 @@ script_dir = fileparts(mfilename('fullpath'));
 project_root = fullfile(script_dir, '..');
 
 %% compilation des fonction c utilisées dans le model avec GCC
-compile_mex ()
+%compile_mex ()
 
 %% === Configuration des paramètres du modèle ===
-config.station_of_interest = fullfile(project_root, 'data', 'meteo_mottec.csv'); %% pour obtenir le model d'une autre station il suffit de mettre le csv correspondant 
+config.station_of_interest = fullfile(project_root, 'data', 'meteo_zermatt.csv'); %% pour obtenir le model d'une autre station il suffit de mettre le csv correspondant 
 config.sector_of_interest = get_sector_id(config.station_of_interest);
 config.train_ratio = 0.8;
 config.val_ratio = 0.25;
 config.high_risk_threshold = 2.3;
-config.alphas = 0:2:20;
+config.alphas = 0:20;
 config.rng_seed = 1;
 config.resultDir = fullfile(project_root, 'results');
 

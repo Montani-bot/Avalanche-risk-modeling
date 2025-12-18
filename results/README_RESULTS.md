@@ -1,0 +1,2 @@
+## Specific graphs and model coefficients for the choosen station will be generated here once the run_all file is executed
+### One can generate the results for the 6 stations for which I have downloaded meteorological data in the data folder.

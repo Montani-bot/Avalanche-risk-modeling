@@ -58,8 +58,8 @@ function [best_alpha, b_final, performance] = train_model(...
         TP = sum(pred_high_mask & true_high_mask);    % Vrai positif
         FN = sum(~pred_high_mask & true_high_mask);   % Faux négatif
         FP = sum(pred_high_mask & ~true_high_mask);   % Faux positif
-        TN = sum(~pred_high_mask & ~true_high_mask)
-        confusion_matrix = [TP, FP, FN, TN];
+        %TN = sum(~pred_high_mask & ~true_high_mask)
+        %confusion_matrix = [TP, FP; FN, TN];
 
         % Calcul du recall (sensibilité)
         if (TP + FN) > 0
@@ -78,7 +78,7 @@ function [best_alpha, b_final, performance] = train_model(...
     end
     
     %% === Sélection du meilleur alpha ===
-    valid_idx = find(recall_high >= 0.8 & precision_high >= 0.30 & MSE_high < 0.15 & R2_high > 0.2);
+    valid_idx = find(recall_high >= 0.9 & MSE_high < 0.15 & R2_high > R2_global);
     
     if isempty(valid_idx)
         warning("❌ Aucun alpha ne satisfait les contraintes sur VALIDATION. Sélection par meilleur R² global.");
