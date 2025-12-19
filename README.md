@@ -5,7 +5,7 @@
 - This project implements a **Weighted Least Squares (WLS) regression model** to predict avalanche risk levels in Swiss mountainous regions. The model links meteorological observations from MeteoSwiss stations with daily avalanche risk indices published by the Swiss Federal Institute for Snow and Avalanche Research (SLF).
 
 ## Important note: 
-- to obtain the model for another station, simply load a different CSV table at line 14 of the run_all file.
+- to obtain the model for another station, simply load a different CSV table at line 14 of the run_all.m file.
 - The available csv files are stored in the data folder. 
 - I arbitrary choosed to load a few stations but my model is built to work with every meteoswiss stations.  
 
@@ -80,7 +80,7 @@
 - Linux (tested and intended for portability across Linux environments)
 
 **MATLAB**  
-- Version: R2025a  
+- Version: R2021b or newer
 - Required Toolboxes: None (does not rely on the Statistics and Machine Learning Toolbox)
 
 **C Compiler**  
@@ -90,6 +90,8 @@
 ### Build
 
 - Compile the C acceleration routines (MEX files) into the `bin/` directory:
+
+- this step has been added to the run_all.m script to simplifie the process but you can still compile the c code manually the following way:
 
 - matlab -batch "run('src/compile_mex.m')"
 
