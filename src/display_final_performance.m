@@ -2,7 +2,7 @@ function display_final_performance(metrics, high_risk_threshold, b_final, var_na
 %% Affiche les performances finales du modèle ainsi que les coefficients dans le terminal 
     
     fprintf("\n   ===========================================================================\n");
-    fprintf("                 🌟 PERFORMANCES FINALES DU MODEL SUR L'ECHANTILLON TEST 🌟\n");
+    fprintf("                 🌟 FINAL MODEL PERFORMANCE ON THE TEST SAMPLE 🌟\n");
     fprintf("   ============================================================================\n");
     
     fprintf("🔹 Global Performance\n");
@@ -18,16 +18,4 @@ function display_final_performance(metrics, high_risk_threshold, b_final, var_na
     
     
     fprintf("=======================================================================\n\n");
-    
-    %% =================== Affichage des coefficients dans le terminal ===================
-    fprintf("\n=================== Coefficients de la régression ===================\n");
-    fprintf("%-35s %10s\n", 'Variable', 'Coefficient');
-    fprintf('%s\n', repmat('-',1,50));
-
-    fprintf("%-35s %10.4f\n", 'Intercept', b_final(1));
-
-    for i = 1:length(var_names)
-        fprintf("%-35s %10.4f\n", var_names{i}, b_final(i+1));
-    end
-    fprintf("=======================================================================\n");
 end

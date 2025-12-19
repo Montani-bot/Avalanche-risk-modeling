@@ -1,3 +1,4 @@
+%% this function compile all the c functions needed in the project and store the executable in the Bin directory
 function compile_mex()
 
     outdir = fullfile(fileparts(mfilename('fullpath')), '..', 'bin');

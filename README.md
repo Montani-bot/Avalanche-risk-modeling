@@ -2,7 +2,12 @@
 
 ## Project Description
 
-This project implements a **Weighted Least Squares (WLS) regression model** to predict avalanche risk levels in Swiss mountainous regions. The model links meteorological observations from MeteoSwiss stations with daily avalanche risk indices published by the Swiss Federal Institute for Snow and Avalanche Research (SLF).
+- This project implements a **Weighted Least Squares (WLS) regression model** to predict avalanche risk levels in Swiss mountainous regions. The model links meteorological observations from MeteoSwiss stations with daily avalanche risk indices published by the Swiss Federal Institute for Snow and Avalanche Research (SLF).
+
+## Important note: 
+- to obtain the model for another station, simply load a different CSV table at line 14 of the run_all file.
+- The available csv files are stored in the data folder. 
+- I arbitrary choosed to load a few stations but my model is built to work with every meteoswiss stations.  
 
 ### Main Objectives
 - Develop an operational decision-support tool for avalanche risk assessment  

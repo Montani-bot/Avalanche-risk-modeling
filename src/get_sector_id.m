@@ -1,11 +1,11 @@
-%% cette fonction à pour but de determiner automatiquement le bon secteur SLF pour la station entrée en input
+%% This function aims to automatically determine the correct SLF sector for the station provided as input.
 function sector_id = get_sector_id(station_path)
 
-    % Extraire le nom du fichier sans extension
+    % Extract the file name without its extension.
     [~, station_name, ~] = fileparts(station_path);
     station_name = lower(station_name);   % normalisation
 
-    % === Dictionnaire station -> sector_id ===
+    % === Dictionary station -> sector_id ===
     switch station_name
         case 'meteo_weissfluhjoch'
             sector_id = 5123;  % Davos 

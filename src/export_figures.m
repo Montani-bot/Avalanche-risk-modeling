@@ -2,17 +2,16 @@ function export_figures(y_test, y_pred_final, ...
     alphas, alpha_results, best_alpha, ...
     b_final, var_names, ...
     resultDir)
-%% Génère et exporte toutes les figures dans le folder Results 
-    
-    % Création du dossier de résultats si nécessaire
+    %% Generate and export all figures to the Results folder
+    % Create the Results folder if necessary
     if ~isfolder(resultDir)
         mkdir(resultDir);
     end
     
     timestamp = char(datetime('now', 'Format', 'yyyyMMdd_HHmmss'));
     
-    %% === Figure 1: Calibration de alpha === 
-    % visuel du compromis de performances high risk et globale effectué lors du choix de alpha 
+    %% === Figure 1: Alpha calibration === 
+    % Visual of the high-risk versus overall performance trade-off made during alpha selection 
 
     fig1 = figure('Visible', 'off', 'Name', 'Weight calibration via alpha');
     
@@ -38,8 +37,7 @@ function export_figures(y_test, y_pred_final, ...
     
     save_figure(fig1, 'alpha_calibration', resultDir, timestamp);
     
-    %% === Figure 2: Importance des variables ===
-    % Barplot contenant chaque variable et son impacte global sur le risque mesuré par le model 
+    %% === Figure 2: Variables importance === 
     fig2 = figure('Visible', 'off', 'Name', 'Importance of variables');
     bar(b_final(2:end));
     
@@ -57,8 +55,7 @@ function export_figures(y_test, y_pred_final, ...
     
     save_figure(fig2, 'variable_importance', resultDir, timestamp);
     
-    %% === Figure 3: Prédictions vs Observations ===
-    % visuel de l'écart entre les prediction du model et le risque SLF 
+    %% === Figure 3: Prédictions vs Observations === 
     fig3 = figure('Visible', 'off', 'Name', 'Model predictions VS SLF risk');
     scatter(y_test, y_pred_final, 'filled');
     hold on;
@@ -70,12 +67,11 @@ function export_figures(y_test, y_pred_final, ...
     
     save_figure(fig3, 'predictions_vs_observations', resultDir, timestamp);
     
-    %% === Figure 4: Analyse des erreurs par niveau de risque ===
-    % Barplot du nombre d'erreur significative par niveau de risque 
-    % Il a été considéré ici qu'une erreur significative est une prediction avec un écart au risque SLF supérieure à 0.15
+    %% === Figure 4: Error analysis by risk level ===
+    % Here, a significant error is considered to be a prediction with a deviation from the SLF risk greater than 0.165
     risk_levels = [1, 1.33, 1.67, 2, 2.33, 2.67, 3, 3.33, 3.67, 4, 4.33];
     errors_per_level = zeros(length(risk_levels), 1);
-    error_threshold = 0.15;
+    error_threshold = 0.165;
     
     for i = 1:length(risk_levels)
         L = risk_levels(i);
@@ -97,14 +93,11 @@ function export_figures(y_test, y_pred_final, ...
     grid on;
     
     save_figure(fig4, 'errors_by_risk_level', resultDir, timestamp);
-    
-    %% Fermeture des figures
-    %close all;
 end
 
-%% cette fonction enregistre les plots au format PNG dans le folder Results 
+%% This function saves the plots as PNG files in the Results folder 
 function save_figure(fig, name, resultDir, timestamp)
-% Sauvegarde une figure individuelle
+ % Save an individual figure
     set(fig, 'Visible', 'on');
     pngName = fullfile(resultDir, sprintf('%s_%s.png', name, timestamp));
     

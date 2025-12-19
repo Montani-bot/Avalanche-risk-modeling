@@ -1,46 +1,46 @@
-%% cette fonction à pour but d'entrainer/calibrer le model personnalisé pour la station choisie en input 
+%% This function aims to train/calibrate the customized model for the station selected as input.
 function [best_alpha, b_final, performance] = train_model(...
     X_train, X_val, y_train, y_val, ...
     mu, sigma, alphas, high_risk_threshold)
     %% === Normalisation ===
-    X_train_n = (X_train - mu) ./ sigma; % mu et sigma proviennent du fichier split_data.m 
+    X_train_n = (X_train - mu) ./ sigma; % mu and sigma come from the split_data.m script
     X_val_n = (X_val - mu) ./ sigma; 
     
     X_train_d = [ones(size(X_train_n, 1), 1), X_train_n];
     X_val_d = [ones(size(X_val_n, 1), 1), X_val_n];
     
-    %% === Calibration de alpha ===
+    %% === Alpha Calibration ===
     num_alphas = length(alphas);
-    % metric choisies pour entrainer et calibrer le modèle
+    % Metric choosen for the model calibration and evaluation
     R2_global = zeros(num_alphas, 1);
     MSE_global = zeros(num_alphas, 1);
-    precision_high = zeros(num_alphas, 1);
 
+    precision_high = zeros(num_alphas, 1);
     R2_high = zeros(num_alphas, 1);
     MSE_high = zeros(num_alphas, 1);
     MAE_high = zeros(num_alphas, 1);
     recall_high = zeros(num_alphas, 1);
     
+    % Loop over different values of alpha to obtain the best one 
     for i = 1:num_alphas
         alpha = alphas(i);
         
-        % WLS sur TRAIN
+        % WLS
         w = 1 + alpha * (y_train > high_risk_threshold);
         W = diag(w);
         b = (X_train_d' * W * X_train_d) \ (X_train_d' * W * y_train);
         
-        % Prédiction sur VALIDATION
+        % Prediction on the VALIDATION set 
         y_pred_val = X_val_d * b;
         
-        % Métriques globales
+        % global metrics 
         R2_global(i) = 1 - sum((y_val - y_pred_val).^2) / sum((y_val - mean(y_val)).^2);
         MSE_global(i) = mean((y_val - y_pred_val).^2);
         
-        % Métriques high-risk
+        % high-risk metrics 
         idx_high = (y_val > high_risk_threshold);
         y_h = y_val(idx_high);
         y_ph = y_pred_val(idx_high);
-        
         
         if ~isempty(y_h)
             R2_high(i) = 1 - sum((y_h - y_ph).^2) / sum((y_h - mean(y_h)).^2);
@@ -48,28 +48,26 @@ function [best_alpha, b_final, performance] = train_model(...
             MAE_high(i) = mean(abs(y_h - y_ph));
         end
 
-        % vrai high-risk
+        % True high-risk
         true_high_mask = (y_val > high_risk_threshold);  % true si risque élevé
         
-        % Prédictions high-risk
+        % high-risk predicted 
         pred_high_mask = (y_pred_val > high_risk_threshold);  % true si prédit élevé
         
-        % Matrice de confusion 
+        % Confusion Matrix 
         TP = sum(pred_high_mask & true_high_mask);    % Vrai positif
         FN = sum(~pred_high_mask & true_high_mask);   % Faux négatif
         FP = sum(pred_high_mask & ~true_high_mask);   % Faux positif
-        %TN = sum(~pred_high_mask & ~true_high_mask)
-        %confusion_matrix = [TP, FP; FN, TN];
+        %TN = sum(~pred_high_mask & ~true_high_mask)  % vrai negatif 
 
-        % Calcul du recall (sensibilité)
+        % recall high risk computation
         if (TP + FN) > 0
             recall_high(i) = TP / (TP + FN);
         else
-            % Si aucun vrai high-risk dans y_val
             recall_high(i) = 0;
         end
 
-        % Precision
+        % Precision computation 
         if (TP + FP) > 0
             precision_high(i) = TP / (TP + FP);
         else
@@ -77,8 +75,9 @@ function [best_alpha, b_final, performance] = train_model(...
         end
     end
     
-    %% === Sélection du meilleur alpha ===
-    valid_idx = find(recall_high >= 0.9 & MSE_high < 0.15 & R2_high > R2_global);
+    %% === Selection of the best alpha ===
+    % Conditions for choosing the most consistent alpha parameter from the list 
+    valid_idx = find(recall_high >= 0.9 & MSE_high < 0.1 & R2_high > R2_global);
     
     if isempty(valid_idx)
         warning("❌ Aucun alpha ne satisfait les contraintes sur VALIDATION. Sélection par meilleur R² global.");
@@ -87,11 +86,11 @@ function [best_alpha, b_final, performance] = train_model(...
         [~, local_best] = max(R2_global(valid_idx));
         best_idx = valid_idx(local_best);
     end
-    
+
     best_alpha = alphas(best_idx);
     
-    %% === Affichage des résultats de calibration ===
-    fprintf("\n===== CALIBRATION DE ALPHA RESULTAT DU TEST INTERNE =====\n");
+    %% === Display of calibration results ===
+    fprintf("\n===== Alpha calibration – internal test results. =====\n");
     fprintf("Best alpha = %.2f\n", best_alpha);
     fprintf("R² global (val) = %.3f\n", R2_global(best_idx));
     fprintf("R² high-risk (val) = %.3f\n", R2_high(best_idx));
@@ -99,14 +98,14 @@ function [best_alpha, b_final, performance] = train_model(...
     fprintf("precision high-risk (val) = %.3f\n", precision_high(best_idx));
     fprintf("MSE high-risk (val) = %.3f\n", MSE_high(best_idx));
     
-    %% === Entraînement final sur la partie du train n'ayant pas servit pour tester alpha (evite la fuite de donnée)=== 
+    %% === Final training on the train set only (without the validation set to avoids data leakage)=== 
     w_final = 1 + best_alpha * (y_train > high_risk_threshold);
     W_final = diag(w_final);
     
     b_final = (X_train_d' * W_final * X_train_d) \ ...
               (X_train_d' * W_final * y_train);
     
-    %% === Stockage des performances ===
+    %% === Storage of performance metrics ===
     performance.alpha_results.R2_global = R2_global;
     performance.alpha_results.R2_high = R2_high;
     performance.alpha_results.recall_high = recall_high;

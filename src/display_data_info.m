@@ -1,26 +1,26 @@
 function display_data_info(X, y, station_path, sector_of_interest)
-%% Affiche les informations sur les données
-    
+
+%% Display information about the data    
     [~, station_name, station_ext] = fileparts(station_path);
     station_filename = strcat(station_name, station_ext);
 
     
     fprintf("\n=============================================================\n");
-    fprintf("  ➤ Station météorologique : %s\n", station_filename);
-    fprintf("  ➤ Region SLF considérée : %d\n", sector_of_interest);
+    fprintf("  ➤ Meteorological station : %s\n", station_filename);
+    fprintf("  ➤ Corresponding SLF Region : %d\n", sector_of_interest);
     fprintf("=============================================================\n\n");
     
     n_days = length(y);
     n_vars = size(X, 2);
     
     fprintf("\n-------------------------------------------------------------\n");
-    fprintf("     Données restantes après préparation / nettoyage\n");
+    fprintf("     Data remaining after preparation / cleaning\n");
     fprintf("-------------------------------------------------------------\n");
-    fprintf("  ➤ Nombre total de jours conservés : %d\n", n_days);
-    fprintf("  ➤ Nombre de variables météo utilisées : %d\n", n_vars);
-    fprintf("  ➤ Ces données seront utilisées pour :\n");
-    fprintf("        - l'entraînement du modèle\n");
-    fprintf("        - le test final du modèle\n");
+    fprintf("  ➤ Total number of remaining days : %d\n", n_days);
+    fprintf("  ➤ Number of meteorological variables used : %d\n", n_vars);
+    fprintf("  ➤ Those data will be use for :\n");
+    fprintf("        - model training\n");
+    fprintf("        - model final testing\n");
     fprintf("-------------------------------------------------------------\n\n");
 end
 

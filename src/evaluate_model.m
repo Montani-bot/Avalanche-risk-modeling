@@ -1,29 +1,28 @@
 function [y_pred, metrics] = evaluate_model(...
     X_test, y_test, b_final, mu, sigma, high_risk_threshold)
-%% Évalue le modèle sur les données de test
-    
-    % Normalisation des données de test
+%% Evaluate the model on test data     
+    % Normalisation of test data 
     X_test_n = (X_test - mu) ./ sigma;
     X_test_d = [ones(size(X_test_n, 1), 1), X_test_n];
     
     % Prédiction
     y_pred = X_test_d * b_final;
     
-    % Calcul des métriques globales
+    % global metrics calculation 
     metrics.R2_test = 1 - sum((y_test - y_pred).^2) / sum((y_test - mean(y_test)).^2);
     metrics.MSE_test = mean((y_test - y_pred).^2);
     
-    % Métriques high-risk
+    % high-risk metrics 
     idx_high = (y_test > high_risk_threshold);
     y_h = y_test(idx_high);
     y_ph = y_pred(idx_high);
 
-    % Vraies étiquettes high-risk
+    % True high-risk
     true_high_mask = (y_test >= high_risk_threshold);
-    % Prédictions high-risk
+    % Predicted high-risk
     pred_high_mask = (y_pred >= high_risk_threshold);
     
-    % === Matrice de confusion ===
+    % === Confusion Matrix  ===
     TP = sum(pred_high_mask & true_high_mask);       % vrai positif
     FN = sum(~pred_high_mask & true_high_mask);      % faux négatif
     FP = sum(pred_high_mask & ~true_high_mask);      % faux positif
@@ -38,7 +37,7 @@ function [y_pred, metrics] = evaluate_model(...
         metrics.MAE_high_final = NaN;
     end
 
-    % === Recall et Precision ===
+    % === Recall and Precision ===
     if (TP + FN) > 0
         metrics.recall_high_final = TP / (TP + FN);
     else

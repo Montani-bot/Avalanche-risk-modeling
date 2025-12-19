@@ -1,14 +1,15 @@
-%% cette fonction permet de stocker les coefficients du model dans le folder Results
+%% This function stores the model coefficients in the Results folder
 function coeff_saver(b_final, var_names, station_path, resultDir)
-% Vérifie si le dossier de résultats existe, sinon le crée
+% Checks if the Results folder exists; if not, it creates it
     if ~exist(resultDir, 'dir')
         mkdir(resultDir);
     end
 
-    % Récupère le nom propre de la station (ex: meteo_pilatus)
+% Retrieves the proper name of the station (e.g., meteo_pilatus)
     [~, station_name, ~] = fileparts(station_path);
 
-    % Fichier de sortie
+    %% Output file
+
     output_file = fullfile(resultDir, sprintf('model_coeffs_%s.txt', station_name));
 
     fid = fopen(output_file, 'w');
@@ -31,7 +32,7 @@ function coeff_saver(b_final, var_names, station_path, resultDir)
 
     fclose(fid);
 
-    % Affichage propre et portable
+% Clean and portable display
     relative_path = fullfile('results', sprintf('model_coeffs_%s.txt', station_name));
     fprintf("💾 Coefficients saved to: %s\n", relative_path);
 end

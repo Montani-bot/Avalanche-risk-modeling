@@ -1,6 +1,6 @@
-%% Séparation des données en train, validation et test sets 
-% le set de validation interne est utilisé pour calibrer le paramètre alpha
-% le set de test pour evaluer les performances de mon modèle
+%% Splitting the data into training, validation, and test sets
+% the internal validation set is used to calibrate the alpha parameter
+% the test set is used to evaluate the performance of my model
 
 function [X_train, X_val, X_test, y_train, y_val, y_test, mu, sigma] = ...
     split_data(X, y, train_ratio, val_ratio, rng_seed)
@@ -19,7 +19,7 @@ function [X_train, X_val, X_test, y_train, y_val, y_test, mu, sigma] = ...
     X_test = X(test_idx, :);
     y_test = y(test_idx);
     
-    % Séparation train/validation
+    % Separation train/validation
     n_val = round(val_ratio * n_train);
     X_val = X_train_full(1:n_val, :);
     y_val = y_train_full(1:n_val);
@@ -27,9 +27,9 @@ function [X_train, X_val, X_test, y_train, y_val, y_test, mu, sigma] = ...
     X_train = X_train_full(n_val+1:end, :);
     y_train = y_train_full(n_val+1:end);
     
-    % Normalisation (uniquement sur les données du train set pour éviter le data leakage)
+    % Normalisation (Only on the training set data to avoid data leakage)
     mu = mean(X_train);
     sigma = std(X_train);
-    sigma(sigma == 0) = 1;  % Évite division par zéro
+    sigma(sigma == 0) = 1;  % avoid the 0 division problem 
 end
 
